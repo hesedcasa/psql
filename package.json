@@ -1,0 +1,103 @@
+{
+  "name": "@hesed/psql",
+  "description": "CLI for PostgreSQL database interaction",
+  "version": "0.1.0",
+  "author": "Hesed",
+  "bin": {
+    "pg": "./bin/run.js"
+  },
+  "bugs": "https://github.com/hesedcasa/psql/issues",
+  "dependencies": {
+    "@inquirer/prompts": "^8.3.0",
+    "@oclif/core": "^4",
+    "@toon-format/toon": "^2.1.0",
+    "fs-extra": "^11.3.3",
+    "pg": "^8.19.0",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@eslint/compat": "^2",
+    "@oclif/prettier-config": "^0.2.1",
+    "@types/chai": "^5",
+    "@types/fs-extra": "^11.0.4",
+    "@types/mocha": "^10",
+    "@types/node": "^25",
+    "@types/pg": "^8.18.0",
+    "@types/sinon": "^21.0.0",
+    "c8": "^11.0.0",
+    "chai": "^6",
+    "eslint": "^9",
+    "eslint-config-oclif": "^6",
+    "eslint-config-prettier": "^10",
+    "esmock": "^2.7.3",
+    "mocha": "^11",
+    "oclif": "^4",
+    "prettier": "^3.8.1",
+    "shx": "^0.4.0",
+    "sinon": "^21.0.1",
+    "ts-node": "^10",
+    "ts-prune": "^0.10.3",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "./bin",
+    "./dist",
+    "./oclif.manifest.json"
+  ],
+  "homepage": "https://github.com/hesedcasa/psql",
+  "keywords": [
+    "oclif"
+  ],
+  "license": "Apache-2.0",
+  "main": "dist/index.js",
+  "type": "module",
+  "oclif": {
+    "bin": "pg",
+    "dirname": "psql",
+    "commands": "./dist/commands",
+    "plugins": [
+      "@oclif/plugin-*"
+    ],
+    "topicSeparator": " ",
+    "topics": {}
+  },
+  "repository": "hesedcasa/psql",
+  "scripts": {
+    "build": "shx rm -rf dist tsconfig.tsbuildinfo && tsc -b",
+    "lint": "eslint",
+    "postpack": "shx rm -f oclif.manifest.json",
+    "posttest": "npm run lint",
+    "prepack": "oclif manifest && oclif readme",
+    "test": "mocha --forbid-only \"test/**/*.test.ts\"",
+    "test:coverage": "c8 npm test",
+    "test:coverage:report": "c8 --reporter=html --reporter=text npm test",
+    "version": "oclif readme && git add README.md",
+    "find-deadcode": "ts-prune --ignore '(run|default)'",
+    "format": "eslint --cache --fix --quiet . && prettier --write --cache .",
+    "pre-commit": "npm run format && npm run find-deadcode"
+  },
+  "types": "dist/index.d.ts",
+  "c8": {
+    "include": [
+      "src/**/*.ts"
+    ],
+    "exclude": [
+      "src/**/*.d.ts",
+      "test/**/*"
+    ],
+    "reporter": [
+      "text",
+      "lcov",
+      "html"
+    ],
+    "all": true,
+    "check-coverage": true,
+    "lines": 50,
+    "functions": 50,
+    "branches": 50,
+    "statements": 50
+  }
+}
