@@ -31,7 +31,7 @@ describe('psql:describe-table', () => {
   })
 
   it('describes table using default profile and logs result', async () => {
-    const cmd = new PostgresDescribeTable(['--table', 'users'], {
+    const cmd = new PostgresDescribeTable(['users'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
@@ -48,7 +48,7 @@ describe('psql:describe-table', () => {
   })
 
   it('uses provided flags', async () => {
-    const cmd = new PostgresDescribeTable(['--table', 'orders', '--profile', 'prod', '--format', 'json'], {
+    const cmd = new PostgresDescribeTable(['orders', '--profile', 'prod', '--format', 'json'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
@@ -63,7 +63,7 @@ describe('psql:describe-table', () => {
   it('throws error when describe fails', async () => {
     describeTableStub.resolves({error: "ERROR: Table 'nope' doesn't exist", success: false})
 
-    const cmd = new PostgresDescribeTable(['--table', 'nope'], {
+    const cmd = new PostgresDescribeTable(['nope'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)

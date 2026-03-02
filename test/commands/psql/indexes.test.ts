@@ -19,7 +19,7 @@ describe('psql:show-indexes', () => {
     getPgConfigStub = stub().resolves(mockConfig)
     setConfigDirStub = stub()
 
-    const imported = await esmock('../../../src/commands/psql/show-indexes.js', {
+    const imported = await esmock('../../../src/commands/psql/indexes.js', {
       '../../../src/psql/index.js': {
         closeConnections: closeConnectionsStub,
         getPgConfig: getPgConfigStub,
@@ -31,7 +31,7 @@ describe('psql:show-indexes', () => {
   })
 
   it('shows indexes using default profile and logs result', async () => {
-    const cmd = new PostgresShowIndexes(['--table', 'users'], {
+    const cmd = new PostgresShowIndexes(['users'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
@@ -48,7 +48,7 @@ describe('psql:show-indexes', () => {
   })
 
   it('uses provided flags', async () => {
-    const cmd = new PostgresShowIndexes(['--table', 'orders', '--profile', 'staging', '--format', 'json'], {
+    const cmd = new PostgresShowIndexes(['orders', '--profile', 'staging', '--format', 'json'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
@@ -63,7 +63,7 @@ describe('psql:show-indexes', () => {
   it('throws error when show indexes fails', async () => {
     showIndexesStub.resolves({error: "ERROR: Table 'nope' doesn't exist", success: false})
 
-    const cmd = new PostgresShowIndexes(['--table', 'nope'], {
+    const cmd = new PostgresShowIndexes(['nope'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)

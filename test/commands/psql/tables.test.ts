@@ -19,7 +19,7 @@ describe('psql:list-tables', () => {
     getPgConfigStub = stub().resolves(mockConfig)
     setConfigDirStub = stub()
 
-    const imported = await esmock('../../../src/commands/psql/list-tables.js', {
+    const imported = await esmock('../../../src/commands/psql/tables.js', {
       '../../../src/psql/index.js': {
         closeConnections: closeConnectionsStub,
         getPgConfig: getPgConfigStub,

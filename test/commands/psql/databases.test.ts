@@ -19,7 +19,7 @@ describe('psql:list-databases', () => {
     getPgConfigStub = stub().resolves(mockConfig)
     setConfigDirStub = stub()
 
-    const imported = await esmock('../../../src/commands/psql/list-databases.js', {
+    const imported = await esmock('../../../src/commands/psql/databases.js', {
       '../../../src/psql/index.js': {
         closeConnections: closeConnectionsStub,
         getPgConfig: getPgConfigStub,
