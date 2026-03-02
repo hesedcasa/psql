@@ -26,7 +26,7 @@ $ npm install -g @hesed/psql
 $ pg COMMAND
 running command...
 $ pg (--version)
-@hesed/psql/0.1.0 darwin-arm64 node-v22.14.0
+@hesed/psql/0.1.0 linux-x64 node-v20.20.0
 $ pg --help [COMMAND]
 USAGE
   $ pg COMMAND
@@ -53,16 +53,15 @@ Add a PostgreSQL connection profile
 
 ```
 USAGE
-  $ pg psql auth add [--json] [-d <value>] [--host <value>] [-p <value>] [-P <value>] [--profile <value>] [--ssl]
-    [-u <value>]
+  $ pg psql auth add -d <value> --host <value> -p <value> -P <value> --profile <value> -u <value> [--json] [--ssl]
 
 FLAGS
-  -P, --port=<value>      PostgreSQL port
-  -d, --database=<value>  Database name
-  -p, --password=<value>  Password
-  -u, --user=<value>      Username
-      --host=<value>      PostgreSQL host
-      --profile=<value>   Profile name
+  -P, --port=<value>      (required) PostgreSQL port
+  -d, --database=<value>  (required) Database name
+  -p, --password=<value>  (required) Password
+  -u, --user=<value>      (required) Username
+      --host=<value>      (required) PostgreSQL host
+      --profile=<value>   (required) Profile name
       --[no-]ssl          Use SSL
 
 GLOBAL FLAGS
@@ -110,15 +109,14 @@ Update an existing PostgreSQL connection profile
 
 ```
 USAGE
-  $ pg psql auth update [--json] [-d <value>] [--host <value>] [-p <value>] [-P <value>] [--profile <value>] [--ssl]
-    [-u <value>]
+  $ pg psql auth update -d <value> --host <value> -p <value> -P <value> -u <value> [--json] [--profile <value>] [--ssl]
 
 FLAGS
-  -P, --port=<value>      PostgreSQL port
-  -d, --database=<value>  Database name
-  -p, --password=<value>  Password
-  -u, --user=<value>      Username
-      --host=<value>      PostgreSQL host
+  -P, --port=<value>      (required) PostgreSQL port
+  -d, --database=<value>  (required) Database name
+  -p, --password=<value>  (required) Password
+  -u, --user=<value>      (required) Username
+      --host=<value>      (required) PostgreSQL host
       --profile=<value>   Profile name to update
       --[no-]ssl          Use SSL
 
