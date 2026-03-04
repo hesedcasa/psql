@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/hesedcasa/psql/compare/v0.2.0...v0.2.1) (2026-03-04)
+
+
+### 🛠️ Fixes
+
+* remove unused oclif plugin ([063c90a](https://github.com/hesedcasa/psql/commit/063c90ae3a3559c6bfcb23e73e4531f00e096828))
+
 ## [0.2.0](https://github.com/hesedcasa/psql/compare/v0.1.0...v0.2.0) (2026-03-02)
 
 
