@@ -58,9 +58,6 @@
     "bin": "pg",
     "dirname": "psql",
     "commands": "./dist/commands",
-    "plugins": [
-      "@oclif/plugin-*"
-    ],
     "topicSeparator": " ",
     "topics": {}
   },
