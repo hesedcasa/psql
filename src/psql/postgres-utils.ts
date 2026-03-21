@@ -26,20 +26,20 @@ type PgField = {name: string}
  */
 export class PostgreSQLUtil implements DatabaseUtil {
   private config: PgConfig
-  private connectionPool: Map<string, pg.Client>
+  private connections: Map<string, Promise<pg.Client>>
 
   constructor(config: PgConfig) {
     this.config = config
-    this.connectionPool = new Map()
+    this.connections = new Map()
   }
 
   /**
    * Close all connections
    */
   async closeAll(): Promise<void> {
-    await Promise.all([...this.connectionPool.values()].map((c) => c.end()))
-
-    this.connectionPool.clear()
+    const entries = [...this.connections.values()]
+    this.connections.clear()
+    await Promise.allSettled(entries.map(async (clientPromise) => (await clientPromise).end()))
   }
 
   /**
@@ -424,15 +424,29 @@ export class PostgreSQLUtil implements DatabaseUtil {
    * Get or create PostgreSQL client for a profile
    */
   private async getConnection(profileName: string): Promise<pg.Client> {
-    if (this.connectionPool.has(profileName)) {
-      return this.connectionPool.get(profileName)!
+    const existing = this.connections.get(profileName)
+    if (existing) {
+      try {
+        const client = await existing
+        await client.query('SELECT 1')
+        return client
+      } catch {
+        this.connections.delete(profileName)
+      }
     }
 
-    const options = getPgConnectionOptions(this.config, profileName)
-    const client = new pg.Client(options)
-    await client.connect()
-    this.connectionPool.set(profileName, client)
+    const clientPromise = (async () => {
+      const client = new pg.Client(getPgConnectionOptions(this.config, profileName))
+      await client.connect()
+      return client
+    })()
+    this.connections.set(profileName, clientPromise)
 
-    return client
+    try {
+      return await clientPromise
+    } catch (error) {
+      this.connections.delete(profileName)
+      throw error
+    }
   }
 }

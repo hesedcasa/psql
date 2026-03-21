@@ -111,6 +111,72 @@ describe('postgres-utils: PostgreSQLUtil', () => {
     })
   })
 
+  describe('getConnection', () => {
+    it('runs SELECT 1 health check when reusing a cached connection', async () => {
+      mockClient.query.resolves({
+        command: 'SELECT',
+        fields: [{name: 'datname'}],
+        rowCount: 1,
+        rows: [{datname: 'mydb'}],
+      })
+
+      const util = new PostgreSQLUtil(mockConfig)
+      await util.listDatabases('local') // creates connection, 1 query call
+      await util.listDatabases('local') // reuses connection: SELECT 1 + actual query = 2 more calls
+
+      expect(MockClient.callCount).to.equal(1)
+      expect(mockClient.query.callCount).to.equal(3)
+      expect(mockClient.query.firstCall.args[0]).to.not.equal('SELECT 1')
+      expect(mockClient.query.secondCall.args[0]).to.equal('SELECT 1')
+    })
+
+    it('reconnects when health check fails on cached connection', async () => {
+      const dbResult = {
+        command: 'SELECT',
+        fields: [{name: 'datname'}],
+        rowCount: 1,
+        rows: [{datname: 'mydb'}],
+      }
+
+      mockClient.query
+        .onFirstCall()
+        .resolves(dbResult) // first listDatabases actual query
+        .onSecondCall()
+        .rejects(new Error('connection terminated')) // health check on reuse
+        .onThirdCall()
+        .resolves(dbResult) // second listDatabases actual query after reconnect
+
+      const util = new PostgreSQLUtil(mockConfig)
+      await util.listDatabases('local') // creates connection
+      const result = await util.listDatabases('local') // health check fails → reconnects
+
+      expect(result.success).to.be.true
+      expect(MockClient.callCount).to.equal(2) // new client created after stale connection
+    })
+
+    it('removes failed connection promise and throws when connect fails', async () => {
+      mockClient.connect.rejects(new Error('ECONNREFUSED'))
+
+      const util = new PostgreSQLUtil(mockConfig)
+      const result = await util.listDatabases('local')
+
+      expect(result.success).to.be.false
+      expect(result.error).to.include('ECONNREFUSED')
+
+      // After failure, a second call should attempt a fresh connection
+      mockClient.connect.resolves()
+      mockClient.query.resolves({
+        command: 'SELECT',
+        fields: [{name: 'datname'}],
+        rowCount: 1,
+        rows: [{datname: 'mydb'}],
+      })
+      const retryResult = await util.listDatabases('local')
+      expect(retryResult.success).to.be.true
+      expect(MockClient.callCount).to.equal(2)
+    })
+  })
+
   describe('closeAll', () => {
     it('closes all pooled connections', async () => {
       mockClient.query.resolves({
@@ -126,6 +192,32 @@ describe('postgres-utils: PostgreSQLUtil', () => {
       await util.closeAll()
 
       expect(mockClient.end.calledOnce).to.be.true
+    })
+
+    it('closes all connections even if one end() rejects', async () => {
+      const twoProfileConfig = {
+        ...mockConfig,
+        profiles: {
+          ...mockConfig.profiles,
+          remote: {database: 'remotedb', host: 'remote.host', password: 'pass', port: 5432, user: 'admin'},
+        },
+      }
+
+      mockClient.query.resolves({
+        command: 'SELECT',
+        fields: [{name: 'version'}, {name: 'current_database'}],
+        rowCount: 1,
+        // eslint-disable-next-line camelcase
+        rows: [{current_database: 'mydb', version: 'PostgreSQL 15.4'}],
+      })
+      mockClient.end.onFirstCall().rejects(new Error('socket hang up'))
+
+      const util = new PostgreSQLUtil(twoProfileConfig)
+      await util.testConnection('local')
+      await util.testConnection('remote')
+
+      await util.closeAll() // should not throw
+      expect(mockClient.end.callCount).to.equal(2)
     })
   })
 })
