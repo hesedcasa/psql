@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/hesedcasa/psql/compare/v0.2.1...v0.2.2) (2026-03-21)
+
+
+### 🛠️ Fixes
+
+* improve PostgreSQL connection reliability and safety ([#10](https://github.com/hesedcasa/psql/issues/10)) ([66c1388](https://github.com/hesedcasa/psql/commit/66c13885b93f323c85985468a4520a6180db16a4))
+
 ## [0.2.1](https://github.com/hesedcasa/psql/compare/v0.2.0...v0.2.1) (2026-03-04)
 
 
