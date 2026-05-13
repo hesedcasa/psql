@@ -37,7 +37,7 @@
     "sinon": "^21.0.1",
     "ts-node": "^10",
     "ts-prune": "^0.10.3",
-    "typescript": "^5"
+    "typescript": "^6"
   },
   "engines": {
     "node": ">=18.0.0"
