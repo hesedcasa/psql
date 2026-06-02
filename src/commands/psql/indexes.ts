@@ -1,6 +1,6 @@
 import {Args, Command, Flags} from '@oclif/core'
 
-import {closeConnections, getPgConfig, setConfigDir, showIndexes} from '../../psql/index.js'
+import {closeConnections, showIndexes} from '../../psql/index.js'
 
 export default class PostgresIndexes extends Command {
   static override args = {
@@ -23,15 +23,7 @@ export default class PostgresIndexes extends Command {
   public async run(): Promise<void> {
     const {args, flags} = await this.parse(PostgresIndexes)
 
-    setConfigDir(this.config.configDir)
-    let profile: string
-    try {
-      profile = flags.profile ?? (await getPgConfig()).defaultProfile
-    } catch (error: unknown) {
-      this.error(error instanceof Error ? error.message : String(error))
-    }
-
-    const result = await showIndexes(profile, args.table, flags.format as 'json' | 'table' | 'toon')
+    const result = await showIndexes(this.config, args.table, flags.profile, flags.format as 'json' | 'table' | 'toon')
     await closeConnections()
 
     if (result.success) {

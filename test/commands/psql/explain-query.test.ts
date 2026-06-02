@@ -7,10 +7,7 @@ describe('psql:explain-query', () => {
   let PostgresExplainQuery: any
   let explainQueryStub: SinonStub
   let closeConnectionsStub: SinonStub
-  let getPgConfigStub: SinonStub
-  let setConfigDirStub: SinonStub
 
-  const mockConfig = {defaultFormat: 'table', defaultProfile: 'local'}
   const mockResult = {
     plan: [],
     result: '┌──────┬────────────┐\n│ type │ table      │\n└──────┴────────────┘',
@@ -20,15 +17,11 @@ describe('psql:explain-query', () => {
   beforeEach(async () => {
     explainQueryStub = stub().resolves(mockResult)
     closeConnectionsStub = stub().resolves()
-    getPgConfigStub = stub().resolves(mockConfig)
-    setConfigDirStub = stub()
 
     const imported = await esmock('../../../src/commands/psql/explain-query.js', {
       '../../../src/psql/index.js': {
         closeConnections: closeConnectionsStub,
         explainQuery: explainQueryStub,
-        getPgConfig: getPgConfigStub,
-        setConfigDir: setConfigDirStub,
       },
     })
     PostgresExplainQuery = imported.default
@@ -43,9 +36,12 @@ describe('psql:explain-query', () => {
 
     await cmd.run()
 
-    expect(getPgConfigStub.calledOnce).to.be.true
     expect(explainQueryStub.calledOnce).to.be.true
-    expect(explainQueryStub.firstCall.args).to.deep.equal(['local', 'SELECT * FROM users WHERE id = 1', 'table'])
+    expect(explainQueryStub.firstCall.args.slice(1)).to.deep.equal([
+      'SELECT * FROM users WHERE id = 1',
+      undefined,
+      'table',
+    ])
     expect(closeConnectionsStub.calledOnce).to.be.true
     expect(logStub.calledOnce).to.be.true
     expect(logStub.firstCall.args[0]).to.equal(mockResult.result)
@@ -60,8 +56,7 @@ describe('psql:explain-query', () => {
 
     await cmd.run()
 
-    expect(getPgConfigStub.called).to.be.false
-    expect(explainQueryStub.firstCall.args).to.deep.equal(['prod', 'SELECT 1', 'json'])
+    expect(explainQueryStub.firstCall.args.slice(1)).to.deep.equal(['SELECT 1', 'prod', 'json'])
   })
 
   it('throws error when explain fails', async () => {

@@ -1,4 +1,3 @@
-import {encode} from '@toon-format/toon'
 import pg from 'pg'
 
 import type {PgConfig} from './config-loader.js'
@@ -13,17 +12,12 @@ import type {
   TableListResult,
   TableStructureResult,
 } from './database.js'
+import type {PgField, PgRow} from './formatters.js'
 
 import {getPgConnectionOptions} from './config-loader.js'
+import {FORMATTERS} from './formatters.js'
 import {analyzeQuery, applyDefaultLimit, checkBlacklist, getQueryType, requiresConfirmation} from './query-validator.js'
 
-type PgRow = Record<string, unknown>
-type PgField = {name: string}
-
-/**
- * PostgreSQL Database Utility
- * Provides core database operations with safety validation and formatting
- */
 export class PostgreSQLUtil implements DatabaseUtil {
   private config: PgConfig
   private connections: Map<string, Promise<pg.Client>>
@@ -33,18 +27,12 @@ export class PostgreSQLUtil implements DatabaseUtil {
     this.connections = new Map()
   }
 
-  /**
-   * Close all connections
-   */
   async closeAll(): Promise<void> {
     const entries = [...this.connections.values()]
     this.connections.clear()
     await Promise.allSettled(entries.map(async (clientPromise) => (await clientPromise).end()))
   }
 
-  /**
-   * Describe table structure
-   */
   async describeTable(
     profileName: string,
     table: string,
@@ -56,17 +44,8 @@ export class PostgreSQLUtil implements DatabaseUtil {
         `SELECT column_name, data_type, character_maximum_length, is_nullable, column_default FROM information_schema.columns WHERE table_name = '${table}' AND table_schema = 'public' ORDER BY ordinal_position`,
       )
 
-      let output = ''
-      if (format === 'json') {
-        output += this.formatAsJson(result.rows)
-      } else if (format === 'toon') {
-        output += this.formatAsToon(result.rows)
-      } else {
-        output += this.formatAsTable(result.rows, result.fields)
-      }
-
       return {
-        result: output,
+        result: this.formatRows(result.rows, result.fields, format),
         structure: result.rows,
         success: true,
       }
@@ -79,9 +58,6 @@ export class PostgreSQLUtil implements DatabaseUtil {
     }
   }
 
-  /**
-   * Validate and execute a SQL query
-   */
   async executeQuery(
     profileName: string,
     query: string,
@@ -151,9 +127,6 @@ export class PostgreSQLUtil implements DatabaseUtil {
     }
   }
 
-  /**
-   * Explain query execution plan
-   */
   async explainQuery(
     profileName: string,
     query: string,
@@ -163,18 +136,9 @@ export class PostgreSQLUtil implements DatabaseUtil {
       const client = await this.getConnection(profileName)
       const result = await client.query(`EXPLAIN ${query}`)
 
-      let output = ''
-      if (format === 'json') {
-        output += this.formatAsJson(result.rows)
-      } else if (format === 'toon') {
-        output += this.formatAsToon(result.rows)
-      } else {
-        output += this.formatAsTable(result.rows, result.fields)
-      }
-
       return {
         plan: result.rows,
-        result: output,
+        result: this.formatRows(result.rows, result.fields, format),
         success: true,
       }
     } catch (error: unknown) {
@@ -186,104 +150,6 @@ export class PostgreSQLUtil implements DatabaseUtil {
     }
   }
 
-  /**
-   * Format query results as CSV
-   */
-  formatAsCsv(rows: PgRow[], fields: PgField[]): string {
-    if (!rows || rows.length === 0) {
-      return ''
-    }
-
-    const columnNames = fields.map((f) => f.name)
-    let csv = columnNames.join(',') + '\n'
-
-    for (const row of rows) {
-      const values = columnNames.map((name) => {
-        const value = row[name] ?? ''
-        const str = String(value)
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-          return '"' + str.replaceAll('"', '""') + '"'
-        }
-
-        return str
-      })
-      csv += values.join(',') + '\n'
-    }
-
-    return csv
-  }
-
-  /**
-   * Format query results as JSON
-   */
-  formatAsJson(rows: PgRow[]): string {
-    return JSON.stringify(rows, null, 2)
-  }
-
-  /**
-   * Format query results as table
-   */
-  formatAsTable(rows: PgRow[], fields: PgField[]): string {
-    if (!rows || rows.length === 0) {
-      return 'No results'
-    }
-
-    const columnNames = fields.map((f) => f.name)
-    const columnWidths = columnNames.map((name) => {
-      const dataWidth = Math.max(...rows.map((row) => String(row[name] ?? '').length))
-      return Math.max(name.length, dataWidth, 3)
-    })
-
-    let table = '┌' + columnWidths.map((w) => '─'.repeat(w + 2)).join('┬') + '┐\n'
-    table += '│ ' + columnNames.map((name, i) => name.padEnd(columnWidths[i])).join(' │ ') + ' │\n'
-    table += '├' + columnWidths.map((w) => '─'.repeat(w + 2)).join('┼') + '┤\n'
-
-    for (const row of rows) {
-      table +=
-        '│ ' +
-        columnNames
-          .map((name, i) => {
-            const value = row[name] ?? 'NULL'
-            return String(value).padEnd(columnWidths[i])
-          })
-          .join(' │ ') +
-        ' │\n'
-    }
-
-    table += '└' + columnWidths.map((w) => '─'.repeat(w + 2)).join('┴') + '┘'
-
-    return table
-  }
-
-  /**
-   * Format query results as TOON
-   */
-  formatAsToon(rows: PgRow[]): string {
-    if (!rows || rows.length === 0) {
-      return ''
-    }
-
-    const serializedRows = rows.map((row) => {
-      const serialized: Record<string, unknown> = {}
-      for (const [key, value] of Object.entries(row)) {
-        if (value instanceof Date) {
-          serialized[key] = Number.isNaN(value.getTime()) ? null : value.toISOString()
-        } else if (Buffer.isBuffer(value)) {
-          serialized[key] = value.toString('base64')
-        } else {
-          serialized[key] = value
-        }
-      }
-
-      return serialized
-    })
-
-    return encode(serializedRows)
-  }
-
-  /**
-   * List all databases
-   */
   async listDatabases(profileName: string): Promise<DatabaseListResult> {
     try {
       const client = await this.getConnection(profileName)
@@ -303,9 +169,6 @@ export class PostgreSQLUtil implements DatabaseUtil {
     }
   }
 
-  /**
-   * List all tables in current database
-   */
   async listTables(profileName: string): Promise<TableListResult> {
     try {
       const client = await this.getConnection(profileName)
@@ -328,9 +191,6 @@ export class PostgreSQLUtil implements DatabaseUtil {
     }
   }
 
-  /**
-   * Show table indexes
-   */
   async showIndexes(
     profileName: string,
     table: string,
@@ -342,18 +202,9 @@ export class PostgreSQLUtil implements DatabaseUtil {
         `SELECT indexname, indexdef FROM pg_indexes WHERE tablename = '${table}' AND schemaname = 'public'`,
       )
 
-      let output = ''
-      if (format === 'json') {
-        output += this.formatAsJson(result.rows)
-      } else if (format === 'toon') {
-        output += this.formatAsToon(result.rows)
-      } else {
-        output += this.formatAsTable(result.rows, result.fields)
-      }
-
       return {
         indexes: result.rows,
-        result: output,
+        result: this.formatRows(result.rows, result.fields, format),
         success: true,
       }
     } catch (error: unknown) {
@@ -365,9 +216,6 @@ export class PostgreSQLUtil implements DatabaseUtil {
     }
   }
 
-  /**
-   * Test database connection
-   */
   async testConnection(profileName: string): Promise<ConnectionTestResult> {
     try {
       const client = await this.getConnection(profileName)
@@ -389,40 +237,15 @@ export class PostgreSQLUtil implements DatabaseUtil {
     }
   }
 
-  /**
-   * Format rows for SELECT/EXPLAIN query result
-   */
-  private formatSelectResult(rows: PgRow[], fields: PgField[], format: OutputFormat): string {
-    const rowCount = Array.isArray(rows) ? rows.length : 0
-    let result = `Query executed successfully. Rows returned: ${rowCount}\n\n`
-
-    switch (format) {
-      case 'csv': {
-        result += this.formatAsCsv(rows, fields)
-        break
-      }
-
-      case 'json': {
-        result += this.formatAsJson(rows)
-        break
-      }
-
-      case 'toon': {
-        result += this.formatAsToon(rows)
-        break
-      }
-
-      default: {
-        result += this.formatAsTable(rows, fields)
-      }
-    }
-
-    return result
+  private formatRows(rows: PgRow[], fields: PgField[], format: OutputFormat): string {
+    return FORMATTERS[format](rows, fields)
   }
 
-  /**
-   * Get or create PostgreSQL client for a profile
-   */
+  private formatSelectResult(rows: PgRow[], fields: PgField[], format: OutputFormat): string {
+    const rowCount = Array.isArray(rows) ? rows.length : 0
+    return `Query executed successfully. Rows returned: ${rowCount}\n\n` + this.formatRows(rows, fields, format)
+  }
+
   private async getConnection(profileName: string): Promise<pg.Client> {
     const existing = this.connections.get(profileName)
     if (existing) {

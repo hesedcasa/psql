@@ -1,8 +1,3 @@
-/**
- * Query Validation and Safety Module
- * Provides SQL query analysis and safety checks
- */
-
 interface BlacklistCheckResult {
   allowed: boolean
   reason?: string
@@ -19,9 +14,6 @@ interface QueryWarning {
   suggestion: string
 }
 
-/**
- * Check if query contains blacklisted operations
- */
 export function checkBlacklist(query: string, blacklistedOperations: string[]): BlacklistCheckResult {
   const normalizedQuery = query.trim().toUpperCase()
 
@@ -38,9 +30,6 @@ export function checkBlacklist(query: string, blacklistedOperations: string[]): 
   return {allowed: true}
 }
 
-/**
- * Check if query requires user confirmation
- */
 export function requiresConfirmation(query: string, confirmationOperations: string[]): ConfirmationCheckResult {
   const normalizedQuery = query.trim().toUpperCase()
 
@@ -57,14 +46,23 @@ export function requiresConfirmation(query: string, confirmationOperations: stri
   return {required: false}
 }
 
-/**
- * Get query type (SELECT, INSERT, UPDATE, etc.)
- */
 export function getQueryType(query: string): string {
   const normalizedQuery = query.trim().toUpperCase()
   const firstWord = normalizedQuery.split(/\s+/)[0]
 
-  const knownTypes = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE', 'ALTER', 'TRUNCATE', 'EXPLAIN']
+  const knownTypes = [
+    'SELECT',
+    'INSERT',
+    'UPDATE',
+    'DELETE',
+    'DROP',
+    'CREATE',
+    'ALTER',
+    'TRUNCATE',
+    'SHOW',
+    'DESCRIBE',
+    'EXPLAIN',
+  ]
 
   if (knownTypes.includes(firstWord)) {
     return firstWord
@@ -73,9 +71,6 @@ export function getQueryType(query: string): string {
   return 'UNKNOWN'
 }
 
-/**
- * Analyze query for potential issues and provide warnings
- */
 export function analyzeQuery(query: string): QueryWarning[] {
   const warnings: QueryWarning[] = []
   const normalizedQuery = query.trim().toUpperCase()
@@ -113,9 +108,6 @@ export function analyzeQuery(query: string): QueryWarning[] {
   return warnings
 }
 
-/**
- * Apply default LIMIT to SELECT queries if not present
- */
 export function applyDefaultLimit(query: string, defaultLimit: number): string {
   const normalizedQuery = query.trim().toUpperCase()
 
