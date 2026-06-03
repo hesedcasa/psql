@@ -26,7 +26,7 @@ $ npm install -g @hesed/psql
 $ pg COMMAND
 running command...
 $ pg (--version)
-@hesed/psql/0.2.2 linux-x64 node-v20.20.1
+@hesed/psql/0.3.0 linux-x64 node-v22.22.3
 $ pg --help [COMMAND]
 USAGE
   $ pg COMMAND
@@ -38,6 +38,9 @@ USAGE
 
 <!-- commands -->
 * [`pg psql auth add`](#pg-psql-auth-add)
+* [`pg psql auth delete`](#pg-psql-auth-delete)
+* [`pg psql auth list`](#pg-psql-auth-list)
+* [`pg psql auth profile`](#pg-psql-auth-profile)
 * [`pg psql auth test`](#pg-psql-auth-test)
 * [`pg psql auth update`](#pg-psql-auth-update)
 * [`pg psql databases`](#pg-psql-databases)
@@ -49,90 +52,162 @@ USAGE
 
 ## `pg psql auth add`
 
-Add a PostgreSQL connection profile
+Add PostgreSQL authentication
 
 ```
 USAGE
-  $ pg psql auth add -d <value> --host <value> -p <value> -P <value> --profile <value> -u <value> [--json] [--ssl]
+  $ pg psql auth add -p <value> --host <value> --port <value> -u <value> --password <value> -d <value> --ssl
+    [--json]
 
 FLAGS
-  -P, --port=<value>      (required) PostgreSQL port
   -d, --database=<value>  (required) Database name
-  -p, --password=<value>  (required) Password
+  -p, --profile=<value>   (required) Profile name
   -u, --user=<value>      (required) Username
       --host=<value>      (required) PostgreSQL host
-      --profile=<value>   (required) Profile name
-      --[no-]ssl          Use SSL
+      --password=<value>  (required) Password
+      --port=<value>      (required) PostgreSQL port
+      --ssl               (required) Use SSL
 
 GLOBAL FLAGS
   --json  Format output as json.
 
 DESCRIPTION
-  Add a PostgreSQL connection profile
+  Add PostgreSQL authentication
 
 EXAMPLES
   $ pg psql auth add
 
-  $ pg psql auth add --no-ssl
+  $ pg psql auth add -p prod
 ```
 
-_See code: [src/commands/psql/auth/add.ts](https://github.com/hesedcasa/psql/blob/v0.2.2/src/commands/psql/auth/add.ts)_
+_See code: [src/commands/psql/auth/add.ts](https://github.com/hesedcasa/psql/blob/v0.3.0/src/commands/psql/auth/add.ts)_
 
-## `pg psql auth test`
+## `pg psql auth delete`
 
-Test PostgreSQL database connection
+Delete an authentication profile
 
 ```
 USAGE
-  $ pg psql auth test [--json] [--profile <value>]
+  $ pg psql auth delete [--json] [-p <value>]
 
 FLAGS
-  --profile=<value>  Profile name to test
+  -p, --profile=<value>  Profile to delete
 
 GLOBAL FLAGS
   --json  Format output as json.
 
 DESCRIPTION
-  Test PostgreSQL database connection
+  Delete an authentication profile
+
+EXAMPLES
+  $ pg psql auth delete
+
+  $ pg psql auth delete -p prod
+```
+
+_See code: [src/commands/psql/auth/delete.ts](https://github.com/hesedcasa/psql/blob/v0.3.0/src/commands/psql/auth/delete.ts)_
+
+## `pg psql auth list`
+
+List authentication profiles
+
+```
+USAGE
+  $ pg psql auth list [--json]
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  List authentication profiles
+
+EXAMPLES
+  $ pg psql auth list
+```
+
+_See code: [src/commands/psql/auth/list.ts](https://github.com/hesedcasa/psql/blob/v0.3.0/src/commands/psql/auth/list.ts)_
+
+## `pg psql auth profile`
+
+Set or show the default authentication profile
+
+```
+USAGE
+  $ pg psql auth profile [--json] [--default <value>]
+
+FLAGS
+  --default=<value>  Profile to set as default
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Set or show the default authentication profile
+
+EXAMPLES
+  $ pg psql auth profile
+
+  $ pg psql auth profile --default test
+```
+
+_See code: [src/commands/psql/auth/profile.ts](https://github.com/hesedcasa/psql/blob/v0.3.0/src/commands/psql/auth/profile.ts)_
+
+## `pg psql auth test`
+
+Test authentication and connection
+
+```
+USAGE
+  $ pg psql auth test [--json] [-p <value>]
+
+FLAGS
+  -p, --profile=<value>  Authentication profile name
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Test authentication and connection
 
 EXAMPLES
   $ pg psql auth test
 
-  $ pg psql auth test --profile staging
+  $ pg psql auth test -p prod
 ```
 
-_See code: [src/commands/psql/auth/test.ts](https://github.com/hesedcasa/psql/blob/v0.2.2/src/commands/psql/auth/test.ts)_
+_See code: [src/commands/psql/auth/test.ts](https://github.com/hesedcasa/psql/blob/v0.3.0/src/commands/psql/auth/test.ts)_
 
 ## `pg psql auth update`
 
-Update an existing PostgreSQL connection profile
+Update PostgreSQL authentication
 
 ```
 USAGE
-  $ pg psql auth update -d <value> --host <value> -p <value> -P <value> -u <value> [--json] [--profile <value>] [--ssl]
+  $ pg psql auth update -p <value> --host <value> --port <value> -u <value> --password <value> -d <value> --ssl
+    [--json]
 
 FLAGS
-  -P, --port=<value>      (required) PostgreSQL port
   -d, --database=<value>  (required) Database name
-  -p, --password=<value>  (required) Password
+  -p, --profile=<value>   (required) Profile name
   -u, --user=<value>      (required) Username
       --host=<value>      (required) PostgreSQL host
-      --profile=<value>   Profile name to update
-      --[no-]ssl          Use SSL
+      --password=<value>  (required) Password
+      --port=<value>      (required) PostgreSQL port
+      --ssl               (required) Use SSL
 
 GLOBAL FLAGS
   --json  Format output as json.
 
 DESCRIPTION
-  Update an existing PostgreSQL connection profile
+  Update PostgreSQL authentication
 
 EXAMPLES
-  $ pg psql auth update --ssl
+  $ pg psql auth update
 
-  $ pg psql auth update --profile staging
+  $ pg psql auth update -p test
 ```
 
-_See code: [src/commands/psql/auth/update.ts](https://github.com/hesedcasa/psql/blob/v0.2.2/src/commands/psql/auth/update.ts)_
+_See code: [src/commands/psql/auth/update.ts](https://github.com/hesedcasa/psql/blob/v0.3.0/src/commands/psql/auth/update.ts)_
 
 ## `pg psql databases`
 
@@ -154,7 +229,7 @@ EXAMPLES
   $ pg psql databases --profile staging
 ```
 
-_See code: [src/commands/psql/databases.ts](https://github.com/hesedcasa/psql/blob/v0.2.2/src/commands/psql/databases.ts)_
+_See code: [src/commands/psql/databases.ts](https://github.com/hesedcasa/psql/blob/v0.3.0/src/commands/psql/databases.ts)_
 
 ## `pg psql describe-table TABLE`
 
@@ -181,7 +256,7 @@ EXAMPLES
   $ pg psql describe-table orders --format json --profile prod
 ```
 
-_See code: [src/commands/psql/describe-table.ts](https://github.com/hesedcasa/psql/blob/v0.2.2/src/commands/psql/describe-table.ts)_
+_See code: [src/commands/psql/describe-table.ts](https://github.com/hesedcasa/psql/blob/v0.3.0/src/commands/psql/describe-table.ts)_
 
 ## `pg psql explain-query QUERY`
 
@@ -208,7 +283,7 @@ EXAMPLES
   $ pg psql explain-query "SELECT * FROM orders JOIN users ON orders.user_id = users.id" --format json
 ```
 
-_See code: [src/commands/psql/explain-query.ts](https://github.com/hesedcasa/psql/blob/v0.2.2/src/commands/psql/explain-query.ts)_
+_See code: [src/commands/psql/explain-query.ts](https://github.com/hesedcasa/psql/blob/v0.3.0/src/commands/psql/explain-query.ts)_
 
 ## `pg psql indexes TABLE`
 
@@ -235,7 +310,7 @@ EXAMPLES
   $ pg psql indexes orders --format json --profile prod
 ```
 
-_See code: [src/commands/psql/indexes.ts](https://github.com/hesedcasa/psql/blob/v0.2.2/src/commands/psql/indexes.ts)_
+_See code: [src/commands/psql/indexes.ts](https://github.com/hesedcasa/psql/blob/v0.3.0/src/commands/psql/indexes.ts)_
 
 ## `pg psql query QUERY`
 
@@ -265,7 +340,7 @@ EXAMPLES
   $ pg psql query "DELETE FROM sessions" --profile prod --skip-confirmation
 ```
 
-_See code: [src/commands/psql/query.ts](https://github.com/hesedcasa/psql/blob/v0.2.2/src/commands/psql/query.ts)_
+_See code: [src/commands/psql/query.ts](https://github.com/hesedcasa/psql/blob/v0.3.0/src/commands/psql/query.ts)_
 
 ## `pg psql tables`
 
@@ -287,5 +362,5 @@ EXAMPLES
   $ pg psql tables --profile local
 ```
 
-_See code: [src/commands/psql/tables.ts](https://github.com/hesedcasa/psql/blob/v0.2.2/src/commands/psql/tables.ts)_
+_See code: [src/commands/psql/tables.ts](https://github.com/hesedcasa/psql/blob/v0.3.0/src/commands/psql/tables.ts)_
 <!-- commandsstop -->
