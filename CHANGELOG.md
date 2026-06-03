@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/hesedcasa/psql/compare/v0.2.2...v0.3.0) (2026-06-03)
+
+
+### 🎉 Features
+
+* add @hesed/plugin-lib and missing auth commands (list, delete, profile) ([#43](https://github.com/hesedcasa/psql/issues/43)) ([72abaac](https://github.com/hesedcasa/psql/commit/72abaac199bb8aa83106aa1ba30dbd5bb17ad747))
+
 ## [0.2.2](https://github.com/hesedcasa/psql/compare/v0.2.1...v0.2.2) (2026-03-21)
 
 
