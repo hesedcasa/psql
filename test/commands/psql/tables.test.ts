@@ -7,24 +7,17 @@ describe('psql:list-tables', () => {
   let PostgresListTables: any
   let listTablesStub: SinonStub
   let closeConnectionsStub: SinonStub
-  let getPgConfigStub: SinonStub
-  let setConfigDirStub: SinonStub
 
-  const mockConfig = {defaultFormat: 'table', defaultProfile: 'local'}
   const mockResult = {result: 'Tables in database:\n  • users\n  • orders', success: true, tables: ['users', 'orders']}
 
   beforeEach(async () => {
     listTablesStub = stub().resolves(mockResult)
     closeConnectionsStub = stub().resolves()
-    getPgConfigStub = stub().resolves(mockConfig)
-    setConfigDirStub = stub()
 
     const imported = await esmock('../../../src/commands/psql/tables.js', {
       '../../../src/psql/index.js': {
         closeConnections: closeConnectionsStub,
-        getPgConfig: getPgConfigStub,
         listTables: listTablesStub,
-        setConfigDir: setConfigDirStub,
       },
     })
     PostgresListTables = imported.default
@@ -39,9 +32,8 @@ describe('psql:list-tables', () => {
 
     await cmd.run()
 
-    expect(getPgConfigStub.calledOnce).to.be.true
     expect(listTablesStub.calledOnce).to.be.true
-    expect(listTablesStub.firstCall.args[0]).to.equal('local')
+    expect(listTablesStub.firstCall.args[1]).to.be.undefined
     expect(closeConnectionsStub.calledOnce).to.be.true
     expect(logJsonStub.calledOnce).to.be.true
     expect(logJsonStub.firstCall.args[0]).to.deep.equal(mockResult.tables)
@@ -56,8 +48,7 @@ describe('psql:list-tables', () => {
 
     await cmd.run()
 
-    expect(getPgConfigStub.called).to.be.false
-    expect(listTablesStub.firstCall.args[0]).to.equal('prod')
+    expect(listTablesStub.firstCall.args[1]).to.equal('prod')
   })
 
   it('throws error when listing fails', async () => {

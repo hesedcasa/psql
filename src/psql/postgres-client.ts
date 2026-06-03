@@ -1,5 +1,8 @@
-import type {DatabaseProfile} from '../config.js'
-import type {PgConfig} from './config-loader.js'
+import type {Config} from '@oclif/core'
+
+import {createProfileManager} from '@hesed/plugin-lib'
+
+import type {DatabaseProfile, PgConfig} from './config-loader.js'
 import type {
   ConnectionTestResult,
   DatabaseListResult,
@@ -11,161 +14,115 @@ import type {
   TableStructureResult,
 } from './database.js'
 
-import {readConfig} from '../config.js'
 import {PostgreSQLUtil} from './postgres-utils.js'
 
 let pgUtil: null | PostgreSQLUtil = null
 let cachedConfig: null | PgConfig = null
-let cachedConfigDir: string
 
-/**
- * Set the config directory for the singleton client
- * @param dir - Oclif config directory path
- */
-export function setConfigDir(dir: string): void {
-  cachedConfigDir = dir
+const DEFAULT_SAFETY_CONFIG = {
+  blacklistedOperations: ['DROP DATABASE'],
+  defaultLimit: 100,
+  requireConfirmationFor: ['DELETE', 'UPDATE', 'DROP', 'TRUNCATE', 'ALTER'],
 }
 
-/**
- * Initialize (or return cached) PostgreSQLUtil
- */
-async function initPg(): Promise<PostgreSQLUtil> {
+async function initPg(config: Config): Promise<PostgreSQLUtil> {
   if (pgUtil) return pgUtil
 
-  if (!cachedConfigDir) {
-    throw new Error('PostgreSQL client not initialized. Call setConfigDir() before running commands.')
+  const pm = createProfileManager<DatabaseProfile>(config)
+
+  const profiles = await pm.readProfiles()
+  if (!profiles) {
+    throw new Error('No profile found.')
   }
 
-  const jsonConfig = await readConfig(cachedConfigDir, console.error)
-  if (!jsonConfig) {
-    throw new Error('Missing connection config. Run "pg psql auth add" to create a config.')
+  const defaultProfile = await pm.getDefaultProfile()
+  if (!defaultProfile) {
+    throw new Error('Missing default profile.')
   }
 
   cachedConfig = {
     defaultFormat: 'table',
-    defaultProfile: jsonConfig.defaultProfile,
-    profiles: jsonConfig.profiles,
-    safety: {
-      blacklistedOperations: ['DROP DATABASE'],
-      defaultLimit: 100,
-      requireConfirmationFor: ['DELETE', 'UPDATE', 'DROP', 'TRUNCATE', 'ALTER'],
-    },
+    defaultProfile,
+    profiles,
+    safety: DEFAULT_SAFETY_CONFIG,
   }
+
   pgUtil = new PostgreSQLUtil(cachedConfig)
   return pgUtil
 }
 
-/**
- * Get the loaded PostgreSQL config, initializing if needed
- */
-export async function getPgConfig(): Promise<PgConfig> {
-  if (!cachedConfig) {
-    await initPg()
-  }
-
-  return cachedConfig!
-}
-
-/**
- * Execute SQL query
- * @param query - SQL query to execute
- * @param profile - Database profile name
- * @param format - Output format
- * @param skipConfirmation - Skip confirmation for destructive operations
- */
+// eslint-disable-next-line max-params
 export async function executeQuery(
+  config: Config,
   query: string,
-  profile: string,
+  profile?: string,
   format: OutputFormat = 'table',
   skipConfirmation = false,
 ): Promise<QueryResult> {
-  return (await initPg()).executeQuery(profile, query, format, skipConfirmation)
+  const profileName = profile ?? cachedConfig?.defaultProfile ?? 'default'
+
+  return (await initPg(config)).executeQuery(profileName, query, format, skipConfirmation)
 }
 
-/**
- * List all databases
- * @param profile - Database profile name
- */
-export async function listDatabases(profile: string): Promise<DatabaseListResult> {
-  return (await initPg()).listDatabases(profile)
+export async function listDatabases(config: Config, profile?: string): Promise<DatabaseListResult> {
+  const profileName = profile ?? cachedConfig?.defaultProfile ?? 'default'
+
+  return (await initPg(config)).listDatabases(profileName)
 }
 
-/**
- * List all tables in current database
- * @param profile - Database profile name
- */
-export async function listTables(profile: string): Promise<TableListResult> {
-  return (await initPg()).listTables(profile)
+export async function listTables(config: Config, profile?: string): Promise<TableListResult> {
+  const profileName = profile ?? cachedConfig?.defaultProfile ?? 'default'
+
+  return (await initPg(config)).listTables(profileName)
 }
 
-/**
- * Describe table structure
- * @param profile - Database profile name
- * @param table - Table name
- * @param format - Output format
- */
 export async function describeTable(
-  profile: string,
+  config: Config,
   table: string,
+  profile?: string,
   format: 'json' | 'table' | 'toon' = 'table',
 ): Promise<TableStructureResult> {
-  return (await initPg()).describeTable(profile, table, format)
+  const profileName = profile ?? cachedConfig?.defaultProfile ?? 'default'
+
+  return (await initPg(config)).describeTable(profileName, table, format)
 }
 
-/**
- * Show table indexes
- * @param profile - Database profile name
- * @param table - Table name
- * @param format - Output format
- */
 export async function showIndexes(
-  profile: string,
+  config: Config,
   table: string,
+  profile?: string,
   format: 'json' | 'table' | 'toon' = 'table',
 ): Promise<IndexResult> {
-  return (await initPg()).showIndexes(profile, table, format)
+  const profileName = profile ?? cachedConfig?.defaultProfile ?? 'default'
+
+  return (await initPg(config)).showIndexes(profileName, table, format)
 }
 
-/**
- * Explain query execution plan
- * @param profile - Database profile name
- * @param query - SQL query to explain
- * @param format - Output format
- */
 export async function explainQuery(
-  profile: string,
+  config: Config,
   query: string,
+  profile?: string,
   format: 'json' | 'table' | 'toon' = 'table',
 ): Promise<ExplainResult> {
-  return (await initPg()).explainQuery(profile, query, format)
+  const profileName = profile ?? cachedConfig?.defaultProfile ?? 'default'
+
+  return (await initPg(config)).explainQuery(profileName, query, format)
 }
 
-/**
- * Test a connection directly with profile options (without loading JSON config)
- * @param profile - Database connection profile options
- */
 export async function testDirectConnection(profile: DatabaseProfile): Promise<ConnectionTestResult> {
-  const tempConfig: PgConfig = {
+  const testConfig: PgConfig = {
     defaultFormat: 'table',
-    defaultProfile: '_auth',
-    profiles: {_auth: profile},
-    safety: {
-      blacklistedOperations: [],
-      defaultLimit: 100,
-      requireConfirmationFor: [],
-    },
+    defaultProfile: 'default',
+    profiles: {default: profile},
+    safety: DEFAULT_SAFETY_CONFIG,
   }
-  const tempUtil = new PostgreSQLUtil(tempConfig)
-  try {
-    return await tempUtil.testConnection('_auth')
-  } finally {
-    await tempUtil.closeAll()
-  }
+
+  const util = new PostgreSQLUtil(testConfig)
+  const result = await util.testConnection('default')
+  await util.closeAll()
+  return result
 }
 
-/**
- * Close all connections
- */
 export async function closeConnections(): Promise<void> {
   if (pgUtil) {
     await pgUtil.closeAll()

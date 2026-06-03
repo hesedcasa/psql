@@ -7,23 +7,16 @@ describe('psql:show-indexes', () => {
   let PostgresShowIndexes: any
   let showIndexesStub: SinonStub
   let closeConnectionsStub: SinonStub
-  let getPgConfigStub: SinonStub
-  let setConfigDirStub: SinonStub
 
-  const mockConfig = {defaultFormat: 'table', defaultProfile: 'local'}
   const mockResult = {indexes: [], result: '┌──────────────┐\n│ PRIMARY (id) │\n└──────────────┘', success: true}
 
   beforeEach(async () => {
     showIndexesStub = stub().resolves(mockResult)
     closeConnectionsStub = stub().resolves()
-    getPgConfigStub = stub().resolves(mockConfig)
-    setConfigDirStub = stub()
 
     const imported = await esmock('../../../src/commands/psql/indexes.js', {
       '../../../src/psql/index.js': {
         closeConnections: closeConnectionsStub,
-        getPgConfig: getPgConfigStub,
-        setConfigDir: setConfigDirStub,
         showIndexes: showIndexesStub,
       },
     })
@@ -39,9 +32,8 @@ describe('psql:show-indexes', () => {
 
     await cmd.run()
 
-    expect(getPgConfigStub.calledOnce).to.be.true
     expect(showIndexesStub.calledOnce).to.be.true
-    expect(showIndexesStub.firstCall.args).to.deep.equal(['local', 'users', 'table'])
+    expect(showIndexesStub.firstCall.args.slice(1)).to.deep.equal(['users', undefined, 'table'])
     expect(closeConnectionsStub.calledOnce).to.be.true
     expect(logStub.calledOnce).to.be.true
     expect(logStub.firstCall.args[0]).to.equal(mockResult.result)
@@ -56,8 +48,7 @@ describe('psql:show-indexes', () => {
 
     await cmd.run()
 
-    expect(getPgConfigStub.called).to.be.false
-    expect(showIndexesStub.firstCall.args).to.deep.equal(['staging', 'orders', 'json'])
+    expect(showIndexesStub.firstCall.args.slice(1)).to.deep.equal(['orders', 'staging', 'json'])
   })
 
   it('throws error when show indexes fails', async () => {
