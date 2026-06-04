@@ -1,3 +1,3 @@
 import {createAuthDeleteCommand} from '@hesed/plugin-lib'
 
-export default createAuthDeleteCommand()
+export default createAuthDeleteCommand({configFile: 'pg-config.json'})

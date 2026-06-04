@@ -13,6 +13,7 @@ const fields: FieldDef[] = [
 
 export default createAuthUpdateCommand({
   clearClients: closeConnections,
+  configFile: 'pg-config.json',
   fields,
   serviceName: 'PostgreSQL',
   testConnection: testDirectConnection,
