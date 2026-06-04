@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/hesedcasa/psql/compare/v0.3.0...v0.4.0) (2026-06-04)
+
+
+### 🎉 Features
+
+* upgrade @hesed/plugin-lib to 0.9.0 and pass configFile to auth commands ([d5b2e4a](https://github.com/hesedcasa/psql/commit/d5b2e4a7a681331a34cf12852be2d2cbb03c0eec))
+
 ## [0.3.0](https://github.com/hesedcasa/psql/compare/v0.2.2...v0.3.0) (2026-06-03)
 
 
