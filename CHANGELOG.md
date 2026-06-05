@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/hesedcasa/psql/compare/v0.4.0...v0.4.1) (2026-06-05)
+
+
+### 🛠️ Fixes
+
+* pass explicit config filename to createProfileManager ([a24a6d3](https://github.com/hesedcasa/psql/commit/a24a6d377610fbf06000d5c5a9d62fcfe243e37e))
+
 ## [0.4.0](https://github.com/hesedcasa/psql/compare/v0.3.0...v0.4.0) (2026-06-04)
 
 
