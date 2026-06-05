@@ -28,7 +28,7 @@ const DEFAULT_SAFETY_CONFIG = {
 async function initPg(config: Config): Promise<PostgreSQLUtil> {
   if (pgUtil) return pgUtil
 
-  const pm = createProfileManager<DatabaseProfile>(config)
+  const pm = createProfileManager<DatabaseProfile>(config, undefined, 'pg-config.json')
 
   const profiles = await pm.readProfiles()
   if (!profiles) {
