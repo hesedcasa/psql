@@ -26,7 +26,7 @@ $ npm install -g @hesed/psql
 $ pg COMMAND
 running command...
 $ pg (--version)
-@hesed/psql/0.4.0 linux-x64 node-v22.22.3
+@hesed/psql/0.4.1 linux-x64 node-v22.22.3
 $ pg --help [COMMAND]
 USAGE
   $ pg COMMAND
@@ -80,7 +80,7 @@ EXAMPLES
   $ pg psql auth add -p prod
 ```
 
-_See code: [src/commands/psql/auth/add.ts](https://github.com/hesedcasa/psql/blob/v0.4.0/src/commands/psql/auth/add.ts)_
+_See code: [src/commands/psql/auth/add.ts](https://github.com/hesedcasa/psql/blob/v0.4.1/src/commands/psql/auth/add.ts)_
 
 ## `pg psql auth delete`
 
@@ -105,7 +105,7 @@ EXAMPLES
   $ pg psql auth delete -p prod
 ```
 
-_See code: [src/commands/psql/auth/delete.ts](https://github.com/hesedcasa/psql/blob/v0.4.0/src/commands/psql/auth/delete.ts)_
+_See code: [src/commands/psql/auth/delete.ts](https://github.com/hesedcasa/psql/blob/v0.4.1/src/commands/psql/auth/delete.ts)_
 
 ## `pg psql auth list`
 
@@ -125,7 +125,7 @@ EXAMPLES
   $ pg psql auth list
 ```
 
-_See code: [src/commands/psql/auth/list.ts](https://github.com/hesedcasa/psql/blob/v0.4.0/src/commands/psql/auth/list.ts)_
+_See code: [src/commands/psql/auth/list.ts](https://github.com/hesedcasa/psql/blob/v0.4.1/src/commands/psql/auth/list.ts)_
 
 ## `pg psql auth profile`
 
@@ -150,7 +150,7 @@ EXAMPLES
   $ pg psql auth profile --default test
 ```
 
-_See code: [src/commands/psql/auth/profile.ts](https://github.com/hesedcasa/psql/blob/v0.4.0/src/commands/psql/auth/profile.ts)_
+_See code: [src/commands/psql/auth/profile.ts](https://github.com/hesedcasa/psql/blob/v0.4.1/src/commands/psql/auth/profile.ts)_
 
 ## `pg psql auth test`
 
@@ -175,7 +175,7 @@ EXAMPLES
   $ pg psql auth test -p prod
 ```
 
-_See code: [src/commands/psql/auth/test.ts](https://github.com/hesedcasa/psql/blob/v0.4.0/src/commands/psql/auth/test.ts)_
+_See code: [src/commands/psql/auth/test.ts](https://github.com/hesedcasa/psql/blob/v0.4.1/src/commands/psql/auth/test.ts)_
 
 ## `pg psql auth update`
 
@@ -207,7 +207,7 @@ EXAMPLES
   $ pg psql auth update -p test
 ```
 
-_See code: [src/commands/psql/auth/update.ts](https://github.com/hesedcasa/psql/blob/v0.4.0/src/commands/psql/auth/update.ts)_
+_See code: [src/commands/psql/auth/update.ts](https://github.com/hesedcasa/psql/blob/v0.4.1/src/commands/psql/auth/update.ts)_
 
 ## `pg psql databases`
 
@@ -229,7 +229,7 @@ EXAMPLES
   $ pg psql databases --profile staging
 ```
 
-_See code: [src/commands/psql/databases.ts](https://github.com/hesedcasa/psql/blob/v0.4.0/src/commands/psql/databases.ts)_
+_See code: [src/commands/psql/databases.ts](https://github.com/hesedcasa/psql/blob/v0.4.1/src/commands/psql/databases.ts)_
 
 ## `pg psql describe-table TABLE`
 
@@ -256,7 +256,7 @@ EXAMPLES
   $ pg psql describe-table orders --format json --profile prod
 ```
 
-_See code: [src/commands/psql/describe-table.ts](https://github.com/hesedcasa/psql/blob/v0.4.0/src/commands/psql/describe-table.ts)_
+_See code: [src/commands/psql/describe-table.ts](https://github.com/hesedcasa/psql/blob/v0.4.1/src/commands/psql/describe-table.ts)_
 
 ## `pg psql explain-query QUERY`
 
@@ -283,7 +283,7 @@ EXAMPLES
   $ pg psql explain-query "SELECT * FROM orders JOIN users ON orders.user_id = users.id" --format json
 ```
 
-_See code: [src/commands/psql/explain-query.ts](https://github.com/hesedcasa/psql/blob/v0.4.0/src/commands/psql/explain-query.ts)_
+_See code: [src/commands/psql/explain-query.ts](https://github.com/hesedcasa/psql/blob/v0.4.1/src/commands/psql/explain-query.ts)_
 
 ## `pg psql indexes TABLE`
 
@@ -310,7 +310,7 @@ EXAMPLES
   $ pg psql indexes orders --format json --profile prod
 ```
 
-_See code: [src/commands/psql/indexes.ts](https://github.com/hesedcasa/psql/blob/v0.4.0/src/commands/psql/indexes.ts)_
+_See code: [src/commands/psql/indexes.ts](https://github.com/hesedcasa/psql/blob/v0.4.1/src/commands/psql/indexes.ts)_
 
 ## `pg psql query QUERY`
 
@@ -340,7 +340,7 @@ EXAMPLES
   $ pg psql query "DELETE FROM sessions" --profile prod --skip-confirmation
 ```
 
-_See code: [src/commands/psql/query.ts](https://github.com/hesedcasa/psql/blob/v0.4.0/src/commands/psql/query.ts)_
+_See code: [src/commands/psql/query.ts](https://github.com/hesedcasa/psql/blob/v0.4.1/src/commands/psql/query.ts)_
 
 ## `pg psql tables`
 
@@ -362,5 +362,5 @@ EXAMPLES
   $ pg psql tables --profile local
 ```
 
-_See code: [src/commands/psql/tables.ts](https://github.com/hesedcasa/psql/blob/v0.4.0/src/commands/psql/tables.ts)_
+_See code: [src/commands/psql/tables.ts](https://github.com/hesedcasa/psql/blob/v0.4.1/src/commands/psql/tables.ts)_
 <!-- commandsstop -->
