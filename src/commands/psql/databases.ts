@@ -6,10 +6,10 @@ export default class PostgresDatabases extends Command {
   static override description = 'List all databases accessible on the PostgreSQL server'
   static override examples = [
     '<%= config.bin %> <%= command.id %>',
-    '<%= config.bin %> <%= command.id %> --profile staging',
+    '<%= config.bin %> <%= command.id %> -p staging',
   ]
   static override flags = {
-    profile: Flags.string({description: 'Database profile name from config', required: false}),
+    profile: Flags.string({char: 'p', description: 'Database profile name from config', required: false}),
   }
 
   public async run(): Promise<void> {

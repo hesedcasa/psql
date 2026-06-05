@@ -10,7 +10,7 @@ export default class PostgresQuery extends Command {
   static override examples = [
     '<%= config.bin %> <%= command.id %> "SELECT * FROM users LIMIT 10"',
     '<%= config.bin %> <%= command.id %> "UPDATE users SET email = \'user@email.com\' WHERE id = 999" --format json',
-    '<%= config.bin %> <%= command.id %> "DELETE FROM sessions" --profile prod --skip-confirmation',
+    '<%= config.bin %> <%= command.id %> "DELETE FROM sessions" -p prod --skip-confirmation',
   ]
   static override flags = {
     format: Flags.string({
@@ -18,7 +18,7 @@ export default class PostgresQuery extends Command {
       description: 'Output format',
       options: ['table', 'json', 'csv', 'toon'],
     }),
-    profile: Flags.string({description: 'Database profile name from config', required: false}),
+    profile: Flags.string({char: 'p', description: 'Database profile name from config', required: false}),
     'skip-confirmation': Flags.boolean({
       default: false,
       description: 'Skip confirmation prompt for destructive operations',

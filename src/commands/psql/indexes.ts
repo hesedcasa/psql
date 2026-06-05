@@ -9,7 +9,7 @@ export default class PostgresIndexes extends Command {
   static override description = 'Show indexes for a PostgreSQL table'
   static override examples = [
     '<%= config.bin %> <%= command.id %> users',
-    '<%= config.bin %> <%= command.id %> orders --format json --profile prod',
+    '<%= config.bin %> <%= command.id %> orders --format json -p prod',
   ]
   static override flags = {
     format: Flags.string({
@@ -17,7 +17,7 @@ export default class PostgresIndexes extends Command {
       description: 'Output format',
       options: ['table', 'json', 'toon'],
     }),
-    profile: Flags.string({description: 'Database profile name from config', required: false}),
+    profile: Flags.string({char: 'p', description: 'Database profile name from config', required: false}),
   }
 
   public async run(): Promise<void> {

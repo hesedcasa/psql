@@ -17,7 +17,7 @@ export default class PostgresExplain extends Command {
       description: 'Output format',
       options: ['table', 'json', 'toon'],
     }),
-    profile: Flags.string({description: 'Database profile name from config', required: false}),
+    profile: Flags.string({char: 'p', description: 'Database profile name from config', required: false}),
   }
 
   public async run(): Promise<void> {
