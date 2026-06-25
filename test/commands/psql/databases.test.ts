@@ -28,15 +28,13 @@ describe('psql:list-databases', () => {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
-    const logJsonStub = stub(cmd, 'logJson')
 
-    await cmd.run()
+    const result = await cmd.run()
 
     expect(listDatabasesStub.calledOnce).to.be.true
     expect(listDatabasesStub.firstCall.args[1]).to.be.undefined
     expect(closeConnectionsStub.calledOnce).to.be.true
-    expect(logJsonStub.calledOnce).to.be.true
-    expect(logJsonStub.firstCall.args[0]).to.deep.equal(mockResult.databases)
+    expect(result).to.deep.equal(mockResult.databases)
   })
 
   it('uses provided --profile flag', async () => {
@@ -44,7 +42,6 @@ describe('psql:list-databases', () => {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
-    stub(cmd, 'logJson')
 
     await cmd.run()
 

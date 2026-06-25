@@ -28,15 +28,13 @@ describe('psql:list-tables', () => {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
-    const logJsonStub = stub(cmd, 'logJson')
 
-    await cmd.run()
+    const result = await cmd.run()
 
     expect(listTablesStub.calledOnce).to.be.true
     expect(listTablesStub.firstCall.args[1]).to.be.undefined
     expect(closeConnectionsStub.calledOnce).to.be.true
-    expect(logJsonStub.calledOnce).to.be.true
-    expect(logJsonStub.firstCall.args[0]).to.deep.equal(mockResult.tables)
+    expect(result).to.deep.equal(mockResult.tables)
   })
 
   it('uses provided --profile flag', async () => {
@@ -44,7 +42,6 @@ describe('psql:list-tables', () => {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
-    stub(cmd, 'logJson')
 
     await cmd.run()
 

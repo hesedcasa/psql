@@ -1,8 +1,9 @@
-import {Args, Command, Flags} from '@oclif/core'
+import {Args, Flags} from '@oclif/core'
 
+import {BaseCommand} from '../../base-command.js'
 import {closeConnections, executeQuery} from '../../psql/index.js'
 
-export default class PostgresQuery extends Command {
+export default class PostgresQuery extends BaseCommand {
   static override args = {
     query: Args.string({description: 'SQL query to execute', required: true}),
   }
@@ -25,7 +26,7 @@ export default class PostgresQuery extends Command {
     }),
   }
 
-  public async run(): Promise<void> {
+  public async run(): Promise<unknown> {
     const {args, flags} = await this.parse(PostgresQuery)
 
     const result = await executeQuery(
@@ -41,13 +42,18 @@ export default class PostgresQuery extends Command {
       // Notices (warnings, row counts) go to stderr so machine-readable formats
       // leave stdout as clean, parseable data.
       if (result.notices) this.logToStderr(result.notices)
+      if (this.jsonEnabled()) return this.parseJsonOutput(result.result)
       this.log(result.result ?? '')
-    } else if (result.requiresConfirmation) {
+      return result
+    }
+
+    if (result.requiresConfirmation) {
       this.log(
         `${result.message ?? 'Destructive operation requires confirmation.'}\nRe-run with --skip-confirmation to proceed.`,
       )
-    } else {
-      this.error(result.error ?? 'Query failed')
+      return result
     }
+
+    this.error(result.error ?? 'Query failed')
   }
 }
