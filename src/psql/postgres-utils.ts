@@ -83,13 +83,17 @@ export class PostgreSQLUtil implements DatabaseUtil {
       }
     }
 
+    // Machine-readable formats must emit only the data payload on stdout, so
+    // analysis warnings and status lines are collected as notices instead.
+    const machineFormat = format === 'json' || format === 'csv' || format === 'toon'
+    const notices: string[] = []
+
     const warnings = analyzeQuery(query)
-    let warningText = ''
     if (warnings.length > 0) {
-      warningText =
+      notices.push(
         'Query Analysis:\n' +
-        warnings.map((w) => `  [${w.level.toUpperCase()}] ${w.message}\n  → ${w.suggestion}`).join('\n') +
-        '\n\n'
+          warnings.map((w) => `  [${w.level.toUpperCase()}] ${w.message}\n  → ${w.suggestion}`).join('\n'),
+      )
     }
 
     let finalQuery = query
@@ -97,7 +101,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     if (queryType === 'SELECT') {
       finalQuery = applyDefaultLimit(query, this.config.safety.defaultLimit)
       if (finalQuery !== query) {
-        warningText += `Applied default LIMIT ${this.config.safety.defaultLimit}\n\n`
+        notices.push(`Applied default LIMIT ${this.config.safety.defaultLimit}`)
       }
     }
 
@@ -105,17 +109,17 @@ export class PostgreSQLUtil implements DatabaseUtil {
       const client = await this.getConnection(profileName)
       const result = await client.query(finalQuery)
 
-      let output = ''
-      if (result.rows.length > 0 || result.command === 'SELECT' || result.command === 'EXPLAIN') {
-        output += this.formatSelectResult(result.rows, result.fields, format)
-      } else {
-        const affectedRows = result.rowCount ?? 0
-        output += `Query executed successfully.\n`
-        output += `Affected rows: ${affectedRows}\n`
-      }
+      const isRead = result.rows.length > 0 || result.command === 'SELECT' || result.command === 'EXPLAIN'
+      const data = isRead
+        ? this.formatReadResult(result.rows, result.fields, format, notices)
+        : this.formatWriteResult(result.rowCount ?? 0, notices)
 
+      const notice = notices.join('\n\n')
+      // For human (table) output everything stays on stdout, exactly as before.
+      // For machine formats the data is returned alone and notices go to stderr.
       return {
-        result: warningText + output,
+        notices: machineFormat ? notice : undefined,
+        result: machineFormat ? data : `${notice}\n\n${data}`,
         success: true,
       }
     } catch (error: unknown) {
@@ -237,13 +241,19 @@ export class PostgreSQLUtil implements DatabaseUtil {
     }
   }
 
+  private formatReadResult(rows: PgRow[], fields: PgField[], format: OutputFormat, notices: string[]): string {
+    const rowCount = Array.isArray(rows) ? rows.length : 0
+    notices.push(`Query executed successfully. Rows returned: ${rowCount}`)
+    return this.formatRows(rows, fields, format)
+  }
+
   private formatRows(rows: PgRow[], fields: PgField[], format: OutputFormat): string {
     return FORMATTERS[format](rows, fields)
   }
 
-  private formatSelectResult(rows: PgRow[], fields: PgField[], format: OutputFormat): string {
-    const rowCount = Array.isArray(rows) ? rows.length : 0
-    return `Query executed successfully. Rows returned: ${rowCount}\n\n` + this.formatRows(rows, fields, format)
+  private formatWriteResult(affectedRows: number, notices: string[]): string {
+    notices.push('Query executed successfully.')
+    return `Affected rows: ${affectedRows}\n`
   }
 
   private async getConnection(profileName: string): Promise<pg.Client> {
