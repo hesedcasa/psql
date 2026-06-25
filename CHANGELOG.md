@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/hesedcasa/psql/compare/v0.5.0...v0.5.1) (2026-06-25)
+
+
+### ♻️ Chores
+
+* introduce BaseCommand to centralize run() return and JSON ([#63](https://github.com/hesedcasa/psql/issues/63)) ([f3688e3](https://github.com/hesedcasa/psql/commit/f3688e33d2f617b7a6387f118d5cbb7dd37964ee))
+
 ## [0.5.0](https://github.com/hesedcasa/psql/compare/v0.4.1...v0.5.0) (2026-06-25)
 
 
