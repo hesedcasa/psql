@@ -38,6 +38,9 @@ export default class PostgresQuery extends Command {
     await closeConnections()
 
     if (result.success) {
+      // Notices (warnings, row counts) go to stderr so machine-readable formats
+      // leave stdout as clean, parseable data.
+      if (result.notices) this.logToStderr(result.notices)
       this.log(result.result ?? '')
     } else if (result.requiresConfirmation) {
       this.log(

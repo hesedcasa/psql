@@ -1,4 +1,3 @@
-export type {ConnectionTestResult} from './database.js'
 export {
   closeConnections,
   describeTable,

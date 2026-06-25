@@ -9,6 +9,9 @@
 export interface QueryResult {
   error?: string
   message?: string
+  // Human-facing chatter (analysis warnings, row counts) kept separate from
+  // `result` so machine-readable formats can emit only the data payload.
+  notices?: string
   requiresConfirmation?: boolean
   result?: string
   success: boolean
