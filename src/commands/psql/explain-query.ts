@@ -1,8 +1,9 @@
-import {Args, Command, Flags} from '@oclif/core'
+import {Args, Flags} from '@oclif/core'
 
+import {BaseCommand} from '../../base-command.js'
 import {closeConnections, explainQuery} from '../../psql/index.js'
 
-export default class PostgresExplain extends Command {
+export default class PostgresExplain extends BaseCommand {
   static override args = {
     query: Args.string({description: 'SQL query to explain', required: true}),
   }
@@ -20,7 +21,7 @@ export default class PostgresExplain extends Command {
     profile: Flags.string({char: 'p', description: 'Database profile name from config', required: false}),
   }
 
-  public async run(): Promise<void> {
+  public async run(): Promise<unknown> {
     const {args, flags} = await this.parse(PostgresExplain)
 
     const result = await explainQuery(this.config, args.query, flags.profile, flags.format as 'json' | 'table' | 'toon')
@@ -28,8 +29,9 @@ export default class PostgresExplain extends Command {
 
     if (result.success) {
       this.log(result.result ?? '')
-    } else {
-      this.error(result.error ?? 'Failed to explain query')
+      return result
     }
+
+    this.error(result.error ?? 'Failed to explain query')
   }
 }

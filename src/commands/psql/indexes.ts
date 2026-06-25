@@ -1,8 +1,9 @@
-import {Args, Command, Flags} from '@oclif/core'
+import {Args, Flags} from '@oclif/core'
 
+import {BaseCommand} from '../../base-command.js'
 import {closeConnections, showIndexes} from '../../psql/index.js'
 
-export default class PostgresIndexes extends Command {
+export default class PostgresIndexes extends BaseCommand {
   static override args = {
     table: Args.string({description: 'Table name to show indexes for', required: true}),
   }
@@ -20,7 +21,7 @@ export default class PostgresIndexes extends Command {
     profile: Flags.string({char: 'p', description: 'Database profile name from config', required: false}),
   }
 
-  public async run(): Promise<void> {
+  public async run(): Promise<unknown> {
     const {args, flags} = await this.parse(PostgresIndexes)
 
     const result = await showIndexes(this.config, args.table, flags.profile, flags.format as 'json' | 'table' | 'toon')
@@ -28,8 +29,9 @@ export default class PostgresIndexes extends Command {
 
     if (result.success) {
       this.log(result.result ?? '')
-    } else {
-      this.error(result.error ?? 'Failed to show indexes')
+      return result
     }
+
+    this.error(result.error ?? 'Failed to show indexes')
   }
 }
