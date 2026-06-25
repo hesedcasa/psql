@@ -26,7 +26,7 @@ $ npm install -g @hesed/psql
 $ pg COMMAND
 running command...
 $ pg (--version)
-@hesed/psql/0.5.0 linux-x64 node-v22.22.3
+@hesed/psql/0.5.1 linux-x64 node-v22.23.0
 $ pg --help [COMMAND]
 USAGE
   $ pg COMMAND
@@ -80,7 +80,7 @@ EXAMPLES
   $ pg psql auth add -p prod
 ```
 
-_See code: [src/commands/psql/auth/add.ts](https://github.com/hesedcasa/psql/blob/v0.5.0/src/commands/psql/auth/add.ts)_
+_See code: [src/commands/psql/auth/add.ts](https://github.com/hesedcasa/psql/blob/v0.5.1/src/commands/psql/auth/add.ts)_
 
 ## `pg psql auth delete`
 
@@ -105,7 +105,7 @@ EXAMPLES
   $ pg psql auth delete -p prod
 ```
 
-_See code: [src/commands/psql/auth/delete.ts](https://github.com/hesedcasa/psql/blob/v0.5.0/src/commands/psql/auth/delete.ts)_
+_See code: [src/commands/psql/auth/delete.ts](https://github.com/hesedcasa/psql/blob/v0.5.1/src/commands/psql/auth/delete.ts)_
 
 ## `pg psql auth list`
 
@@ -125,7 +125,7 @@ EXAMPLES
   $ pg psql auth list
 ```
 
-_See code: [src/commands/psql/auth/list.ts](https://github.com/hesedcasa/psql/blob/v0.5.0/src/commands/psql/auth/list.ts)_
+_See code: [src/commands/psql/auth/list.ts](https://github.com/hesedcasa/psql/blob/v0.5.1/src/commands/psql/auth/list.ts)_
 
 ## `pg psql auth profile`
 
@@ -150,7 +150,7 @@ EXAMPLES
   $ pg psql auth profile --default test
 ```
 
-_See code: [src/commands/psql/auth/profile.ts](https://github.com/hesedcasa/psql/blob/v0.5.0/src/commands/psql/auth/profile.ts)_
+_See code: [src/commands/psql/auth/profile.ts](https://github.com/hesedcasa/psql/blob/v0.5.1/src/commands/psql/auth/profile.ts)_
 
 ## `pg psql auth test`
 
@@ -175,7 +175,7 @@ EXAMPLES
   $ pg psql auth test -p prod
 ```
 
-_See code: [src/commands/psql/auth/test.ts](https://github.com/hesedcasa/psql/blob/v0.5.0/src/commands/psql/auth/test.ts)_
+_See code: [src/commands/psql/auth/test.ts](https://github.com/hesedcasa/psql/blob/v0.5.1/src/commands/psql/auth/test.ts)_
 
 ## `pg psql auth update`
 
@@ -207,7 +207,7 @@ EXAMPLES
   $ pg psql auth update -p test
 ```
 
-_See code: [src/commands/psql/auth/update.ts](https://github.com/hesedcasa/psql/blob/v0.5.0/src/commands/psql/auth/update.ts)_
+_See code: [src/commands/psql/auth/update.ts](https://github.com/hesedcasa/psql/blob/v0.5.1/src/commands/psql/auth/update.ts)_
 
 ## `pg psql databases`
 
@@ -215,10 +215,13 @@ List all databases accessible on the PostgreSQL server
 
 ```
 USAGE
-  $ pg psql databases [-p <value>]
+  $ pg psql databases [--json] [-p <value>]
 
 FLAGS
   -p, --profile=<value>  Database profile name from config
+
+GLOBAL FLAGS
+  --json  Format output as json.
 
 DESCRIPTION
   List all databases accessible on the PostgreSQL server
@@ -229,7 +232,7 @@ EXAMPLES
   $ pg psql databases -p staging
 ```
 
-_See code: [src/commands/psql/databases.ts](https://github.com/hesedcasa/psql/blob/v0.5.0/src/commands/psql/databases.ts)_
+_See code: [src/commands/psql/databases.ts](https://github.com/hesedcasa/psql/blob/v0.5.1/src/commands/psql/databases.ts)_
 
 ## `pg psql describe-table TABLE`
 
@@ -237,7 +240,7 @@ Describe the structure of a PostgreSQL table
 
 ```
 USAGE
-  $ pg psql describe-table TABLE [--format table|json|toon] [-p <value>]
+  $ pg psql describe-table TABLE [--json] [--format table|json|toon] [-p <value>]
 
 ARGUMENTS
   TABLE  Table name to describe
@@ -246,6 +249,9 @@ FLAGS
   -p, --profile=<value>  Database profile name from config
       --format=<option>  [default: table] Output format
                          <options: table|json|toon>
+
+GLOBAL FLAGS
+  --json  Format output as json.
 
 DESCRIPTION
   Describe the structure of a PostgreSQL table
@@ -256,7 +262,7 @@ EXAMPLES
   $ pg psql describe-table orders --format json -p prod
 ```
 
-_See code: [src/commands/psql/describe-table.ts](https://github.com/hesedcasa/psql/blob/v0.5.0/src/commands/psql/describe-table.ts)_
+_See code: [src/commands/psql/describe-table.ts](https://github.com/hesedcasa/psql/blob/v0.5.1/src/commands/psql/describe-table.ts)_
 
 ## `pg psql explain-query QUERY`
 
@@ -264,7 +270,7 @@ Show the execution plan for a PostgreSQL query
 
 ```
 USAGE
-  $ pg psql explain-query QUERY [--format table|json|toon] [-p <value>]
+  $ pg psql explain-query QUERY [--json] [--format table|json|toon] [-p <value>]
 
 ARGUMENTS
   QUERY  SQL query to explain
@@ -273,6 +279,9 @@ FLAGS
   -p, --profile=<value>  Database profile name from config
       --format=<option>  [default: table] Output format
                          <options: table|json|toon>
+
+GLOBAL FLAGS
+  --json  Format output as json.
 
 DESCRIPTION
   Show the execution plan for a PostgreSQL query
@@ -283,7 +292,7 @@ EXAMPLES
   $ pg psql explain-query "SELECT * FROM orders JOIN users ON orders.user_id = users.id" --format json
 ```
 
-_See code: [src/commands/psql/explain-query.ts](https://github.com/hesedcasa/psql/blob/v0.5.0/src/commands/psql/explain-query.ts)_
+_See code: [src/commands/psql/explain-query.ts](https://github.com/hesedcasa/psql/blob/v0.5.1/src/commands/psql/explain-query.ts)_
 
 ## `pg psql indexes TABLE`
 
@@ -291,7 +300,7 @@ Show indexes for a PostgreSQL table
 
 ```
 USAGE
-  $ pg psql indexes TABLE [--format table|json|toon] [-p <value>]
+  $ pg psql indexes TABLE [--json] [--format table|json|toon] [-p <value>]
 
 ARGUMENTS
   TABLE  Table name to show indexes for
@@ -300,6 +309,9 @@ FLAGS
   -p, --profile=<value>  Database profile name from config
       --format=<option>  [default: table] Output format
                          <options: table|json|toon>
+
+GLOBAL FLAGS
+  --json  Format output as json.
 
 DESCRIPTION
   Show indexes for a PostgreSQL table
@@ -310,7 +322,7 @@ EXAMPLES
   $ pg psql indexes orders --format json -p prod
 ```
 
-_See code: [src/commands/psql/indexes.ts](https://github.com/hesedcasa/psql/blob/v0.5.0/src/commands/psql/indexes.ts)_
+_See code: [src/commands/psql/indexes.ts](https://github.com/hesedcasa/psql/blob/v0.5.1/src/commands/psql/indexes.ts)_
 
 ## `pg psql query QUERY`
 
@@ -318,7 +330,7 @@ Execute a SQL query against a PostgreSQL database
 
 ```
 USAGE
-  $ pg psql query QUERY [--format table|json|csv|toon] [-p <value>] [--skip-confirmation]
+  $ pg psql query QUERY [--json] [--format table|json|csv|toon] [-p <value>] [--skip-confirmation]
 
 ARGUMENTS
   QUERY  SQL query to execute
@@ -328,6 +340,9 @@ FLAGS
       --format=<option>    [default: table] Output format
                            <options: table|json|csv|toon>
       --skip-confirmation  Skip confirmation prompt for destructive operations
+
+GLOBAL FLAGS
+  --json  Format output as json.
 
 DESCRIPTION
   Execute a SQL query against a PostgreSQL database
@@ -340,7 +355,7 @@ EXAMPLES
   $ pg psql query "DELETE FROM sessions" -p prod --skip-confirmation
 ```
 
-_See code: [src/commands/psql/query.ts](https://github.com/hesedcasa/psql/blob/v0.5.0/src/commands/psql/query.ts)_
+_See code: [src/commands/psql/query.ts](https://github.com/hesedcasa/psql/blob/v0.5.1/src/commands/psql/query.ts)_
 
 ## `pg psql tables`
 
@@ -348,10 +363,13 @@ List all tables in the current PostgreSQL database
 
 ```
 USAGE
-  $ pg psql tables [-p <value>]
+  $ pg psql tables [--json] [-p <value>]
 
 FLAGS
   -p, --profile=<value>  Database profile name from config
+
+GLOBAL FLAGS
+  --json  Format output as json.
 
 DESCRIPTION
   List all tables in the current PostgreSQL database
@@ -362,5 +380,5 @@ EXAMPLES
   $ pg psql tables -p local
 ```
 
-_See code: [src/commands/psql/tables.ts](https://github.com/hesedcasa/psql/blob/v0.5.0/src/commands/psql/tables.ts)_
+_See code: [src/commands/psql/tables.ts](https://github.com/hesedcasa/psql/blob/v0.5.1/src/commands/psql/tables.ts)_
 <!-- commandsstop -->
