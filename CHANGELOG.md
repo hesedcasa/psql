@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/hesedcasa/psql/compare/v0.4.1...v0.5.0) (2026-06-25)
+
+
+### 🎉 Features
+
+* **query:** route notices to stderr for machine-readable formats ([#61](https://github.com/hesedcasa/psql/issues/61)) ([98e1472](https://github.com/hesedcasa/psql/commit/98e147249c8a673b88bf611136750f6e57e2e431))
+
 ## [0.4.1](https://github.com/hesedcasa/psql/compare/v0.4.0...v0.4.1) (2026-06-05)
 
 
