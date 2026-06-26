@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/hesedcasa/psql/compare/v0.5.1...v0.5.2) (2026-06-26)
+
+
+### ♻️ Chores
+
+* migrate to ApiResult wrapper, replace --format with --toon, rename explain-query to explain ([#65](https://github.com/hesedcasa/psql/issues/65)) ([7082710](https://github.com/hesedcasa/psql/commit/70827101fa25ce6a2000e133bae7fbd3dbf4fb9d))
+
 ## [0.5.1](https://github.com/hesedcasa/psql/compare/v0.5.0...v0.5.1) (2026-06-25)
 
 
