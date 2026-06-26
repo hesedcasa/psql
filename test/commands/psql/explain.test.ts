@@ -3,8 +3,8 @@ import {expect} from 'chai'
 import esmock from 'esmock'
 import {type SinonStub, stub} from 'sinon'
 
-describe('psql:explain-query', () => {
-  let PostgresExplainQuery: any
+describe('psql:explain', () => {
+  let PostgresExplain: any
   let explainQueryStub: SinonStub
   let closeConnectionsStub: SinonStub
 
@@ -18,17 +18,17 @@ describe('psql:explain-query', () => {
     explainQueryStub = stub().resolves(mockResult)
     closeConnectionsStub = stub().resolves()
 
-    const imported = await esmock('../../../src/commands/psql/explain-query.js', {
+    const imported = await esmock('../../../src/commands/psql/explain.js', {
       '../../../src/psql/index.js': {
         closeConnections: closeConnectionsStub,
         explainQuery: explainQueryStub,
       },
     })
-    PostgresExplainQuery = imported.default
+    PostgresExplain = imported.default
   })
 
   it('explains query using default profile and logs result', async () => {
-    const cmd = new PostgresExplainQuery(['SELECT * FROM users WHERE id = 1'], {
+    const cmd = new PostgresExplain(['SELECT * FROM users WHERE id = 1'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
@@ -48,7 +48,7 @@ describe('psql:explain-query', () => {
   })
 
   it('uses provided flags', async () => {
-    const cmd = new PostgresExplainQuery(['SELECT 1', '--profile', 'prod', '--format', 'json'], {
+    const cmd = new PostgresExplain(['SELECT 1', '--profile', 'prod', '--json'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
@@ -62,7 +62,7 @@ describe('psql:explain-query', () => {
   it('throws error when explain fails', async () => {
     explainQueryStub.resolves({error: 'ERROR: You have an error in your SQL syntax', success: false})
 
-    const cmd = new PostgresExplainQuery(['INVALID SQL'], {
+    const cmd = new PostgresExplain(['INVALID SQL'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)

@@ -1,27 +1,26 @@
-import {Command, Flags} from '@oclif/core'
+import type {ApiResult} from '@hesed/plugin-lib'
 
+import {Flags} from '@oclif/core'
+
+import {BaseCommand} from '../../base-command.js'
 import {closeConnections, listDatabases} from '../../psql/index.js'
 
-export default class PostgresDatabases extends Command {
+export default class PostgresDatabases extends BaseCommand {
   static override description = 'List all databases accessible on the PostgreSQL server'
-  static override enableJsonFlag = true
   static override examples = ['<%= config.bin %> <%= command.id %>', '<%= config.bin %> <%= command.id %> -p staging']
   static override flags = {
     profile: Flags.string({char: 'p', description: 'Database profile name from config', required: false}),
   }
 
-  public override jsonEnabled(): boolean {
-    return true
-  }
-
-  public async run(): Promise<string[]> {
+  public async run(): Promise<ApiResult> {
     const {flags} = await this.parse(PostgresDatabases)
 
     const result = await listDatabases(this.config, flags.profile)
     await closeConnections()
 
     if (result.success) {
-      return result.databases ?? []
+      if (!this.jsonEnabled()) this.log(result.result ?? '')
+      return {data: result.databases ?? [], success: true}
     }
 
     this.error(result.error ?? 'Failed to list databases')

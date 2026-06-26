@@ -7,8 +7,6 @@ export abstract class BaseCommand extends Command {
     const separatorIndex = this.argv.indexOf('--')
     const flagArgs = separatorIndex === -1 ? this.argv : this.argv.slice(0, separatorIndex)
 
-    if (this.hasFormatFlag(flagArgs)) return this.formatFlagValue(flagArgs) === 'json'
-
     return flagArgs.includes('--json')
   }
 
@@ -39,16 +37,5 @@ export abstract class BaseCommand extends Command {
   protected override toErrorJson(err: unknown): {error: string} {
     const message = err instanceof Error ? err.message : String(err)
     return {error: message}
-  }
-
-  private formatFlagValue(flagArgs: string[]): string | undefined {
-    for (const [index, arg] of flagArgs.entries()) {
-      if (arg === '--format') return flagArgs[index + 1]
-      if (arg.startsWith('--format=')) return arg.slice('--format='.length)
-    }
-  }
-
-  private hasFormatFlag(flagArgs: string[]): boolean {
-    return flagArgs.some((arg) => arg === '--format' || arg.startsWith('--format='))
   }
 }

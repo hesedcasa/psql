@@ -40,7 +40,7 @@ describe('psql:describe-table', () => {
   })
 
   it('uses provided flags', async () => {
-    const cmd = new PostgresDescribeTable(['orders', '--profile', 'prod', '--format', 'json'], {
+    const cmd = new PostgresDescribeTable(['orders', '--profile', 'prod', '--json'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)

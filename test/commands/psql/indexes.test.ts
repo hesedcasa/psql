@@ -40,7 +40,7 @@ describe('psql:show-indexes', () => {
   })
 
   it('uses provided flags', async () => {
-    const cmd = new PostgresShowIndexes(['orders', '--profile', 'staging', '--format', 'json'], {
+    const cmd = new PostgresShowIndexes(['orders', '--profile', 'staging', '--json'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)

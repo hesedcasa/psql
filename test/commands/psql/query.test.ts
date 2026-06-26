@@ -39,10 +39,10 @@ describe('psql:query', () => {
     expect(logStub.firstCall.args[0]).to.equal(mockResult.result)
   })
 
-  it('uses provided --profile and --format flags', async () => {
+  it('uses provided --profile and --json flag', async () => {
     executeQueryStub.resolves({result: '[{"1":1}]', success: true})
 
-    const cmd = new PostgresQuery(['SELECT 1', '--profile', 'prod', '--format', 'json'], {
+    const cmd = new PostgresQuery(['SELECT 1', '--profile', 'prod', '--json'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
@@ -52,19 +52,15 @@ describe('psql:query', () => {
 
     expect(executeQueryStub.firstCall.args.slice(1)).to.deep.equal(['SELECT 1', 'prod', 'json', false])
     expect(logStub.notCalled).to.be.true
-    expect(result).to.deep.equal([{1: 1}])
+    expect(result).to.deep.equal({data: [{1: 1}], success: true})
   })
 
-  it('enables JSON mode only for --format json', async () => {
-    const jsonCmd = new PostgresQuery(['SELECT 1', '--format', 'json'], {
+  it('enables JSON mode only for --json', async () => {
+    const jsonCmd = new PostgresQuery(['SELECT 1', '--json'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
-    const equalsJsonCmd = new PostgresQuery(['SELECT 1', '--format=json'], {
-      root: process.cwd(),
-      runHook: stub().resolves({failures: [], successes: []}),
-    } as any)
-    const tableCmd = new PostgresQuery(['SELECT 1', '--format', 'table'], {
+    const toonCmd = new PostgresQuery(['SELECT 1', '--toon'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
@@ -72,14 +68,13 @@ describe('psql:query', () => {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
-    const passthroughCmd = new PostgresQuery(['SELECT 1', '--', '--format', 'json'], {
+    const passthroughCmd = new PostgresQuery(['SELECT 1', '--', '--json'], {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
 
     expect(jsonCmd.jsonEnabled()).to.be.true
-    expect(equalsJsonCmd.jsonEnabled()).to.be.true
-    expect(tableCmd.jsonEnabled()).to.be.false
+    expect(toonCmd.jsonEnabled()).to.be.false
     expect(defaultCmd.jsonEnabled()).to.be.false
     expect(passthroughCmd.jsonEnabled()).to.be.false
   })
