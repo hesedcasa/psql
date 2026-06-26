@@ -8,7 +8,7 @@ describe('psql:describe-table', () => {
   let describeTableStub: SinonStub
   let closeConnectionsStub: SinonStub
 
-  const mockResult = {result: '┌─────┬──────┐\n│ id  │ name │\n└─────┴──────┘', structure: [], success: true}
+  const mockResult = {data: {result: '┌─────┬──────┐\n│ id  │ name │\n└─────┴──────┘', structure: []}, success: true}
 
   beforeEach(async () => {
     describeTableStub = stub().resolves(mockResult)
@@ -29,6 +29,7 @@ describe('psql:describe-table', () => {
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
     const logStub = stub(cmd, 'log')
+    const expectedResult = mockResult.data.result
 
     await cmd.run()
 
@@ -36,7 +37,7 @@ describe('psql:describe-table', () => {
     expect(describeTableStub.firstCall.args.slice(1)).to.deep.equal(['users', undefined, 'table'])
     expect(closeConnectionsStub.calledOnce).to.be.true
     expect(logStub.calledOnce).to.be.true
-    expect(logStub.firstCall.args[0]).to.equal(mockResult.result)
+    expect(logStub.firstCall.args[0]).to.equal(expectedResult)
   })
 
   it('uses provided flags', async () => {

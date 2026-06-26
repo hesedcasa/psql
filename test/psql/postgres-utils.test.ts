@@ -48,8 +48,8 @@ describe('postgres-utils: PostgreSQLUtil', () => {
       const result = await util.listDatabases('local')
 
       expect(result.success).to.be.true
-      expect(result.databases).to.deep.equal(['mydb', 'testdb'])
-      expect(result.result).to.include('mydb')
+      expect(result.data?.databases).to.deep.equal(['mydb', 'testdb'])
+      expect(result.data?.result).to.include('mydb')
     })
 
     it('returns error on query failure', async () => {
@@ -77,7 +77,7 @@ describe('postgres-utils: PostgreSQLUtil', () => {
       const result = await util.executeQuery('local', 'DELETE FROM users')
 
       expect(result.success).to.be.false
-      expect(result.requiresConfirmation).to.be.true
+      expect(result.data?.requiresConfirmation).to.be.true
     })
 
     it('executes SELECT with auto LIMIT applied', async () => {
@@ -92,7 +92,7 @@ describe('postgres-utils: PostgreSQLUtil', () => {
       const result = await util.executeQuery('local', 'SELECT * FROM users')
 
       expect(result.success).to.be.true
-      expect(result.result).to.include('Rows returned: 1')
+      expect(result.data?.result).to.include('Rows returned: 1')
     })
 
     it('skips confirmation when skipConfirmation is true', async () => {
@@ -107,7 +107,7 @@ describe('postgres-utils: PostgreSQLUtil', () => {
       const result = await util.executeQuery('local', 'DELETE FROM sessions', 'table', true)
 
       expect(result.success).to.be.true
-      expect(result.result).to.include('Affected rows: 3')
+      expect(result.data?.result).to.include('Affected rows: 3')
     })
   })
 

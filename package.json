@@ -50,7 +50,7 @@
   ],
   "homepage": "https://github.com/hesedcasa/psql",
   "keywords": [
-    "oclif"
+    "postgres"
   ],
   "license": "Apache-2.0",
   "main": "dist/index.js",

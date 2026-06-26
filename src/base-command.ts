@@ -22,8 +22,9 @@ export abstract class BaseCommand extends Command {
     }
   }
 
-  protected parseJsonOutput(output?: string): unknown {
+  protected parseJsonOutput(output?: unknown): unknown {
     if (!output) return null
+    if (typeof output !== 'string') return output
 
     try {
       return JSON.parse(output)

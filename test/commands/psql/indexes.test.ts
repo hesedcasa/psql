@@ -8,7 +8,10 @@ describe('psql:show-indexes', () => {
   let showIndexesStub: SinonStub
   let closeConnectionsStub: SinonStub
 
-  const mockResult = {indexes: [], result: '┌──────────────┐\n│ PRIMARY (id) │\n└──────────────┘', success: true}
+  const mockResult = {
+    data: {indexes: [], result: '┌──────────────┐\n│ PRIMARY (id) │\n└──────────────┘'},
+    success: true,
+  }
 
   beforeEach(async () => {
     showIndexesStub = stub().resolves(mockResult)
@@ -29,6 +32,7 @@ describe('psql:show-indexes', () => {
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
     const logStub = stub(cmd, 'log')
+    const expectedResult = mockResult.data.result
 
     await cmd.run()
 
@@ -36,7 +40,7 @@ describe('psql:show-indexes', () => {
     expect(showIndexesStub.firstCall.args.slice(1)).to.deep.equal(['users', undefined, 'table'])
     expect(closeConnectionsStub.calledOnce).to.be.true
     expect(logStub.calledOnce).to.be.true
-    expect(logStub.firstCall.args[0]).to.equal(mockResult.result)
+    expect(logStub.firstCall.args[0]).to.equal(expectedResult)
   })
 
   it('uses provided flags', async () => {

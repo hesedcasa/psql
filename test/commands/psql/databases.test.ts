@@ -8,7 +8,10 @@ describe('psql:list-databases', () => {
   let listDatabasesStub: SinonStub
   let closeConnectionsStub: SinonStub
 
-  const mockResult = {databases: ['mydb', 'testdb'], result: 'Databases:\n  • mydb\n  • testdb', success: true}
+  const mockResult = {
+    data: {databases: ['mydb', 'testdb'], result: 'Databases:\n  • mydb\n  • testdb'},
+    success: true,
+  }
 
   beforeEach(async () => {
     listDatabasesStub = stub().resolves(mockResult)
@@ -36,7 +39,7 @@ describe('psql:list-databases', () => {
     expect(listDatabasesStub.firstCall.args[1]).to.be.undefined
     expect(closeConnectionsStub.calledOnce).to.be.true
     expect(logStub.calledOnce).to.be.true
-    expect(result).to.deep.equal({data: mockResult.databases ?? [], success: true})
+    expect(result).to.deep.equal(mockResult)
   })
 
   it('uses provided --profile flag', async () => {

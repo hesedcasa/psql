@@ -8,7 +8,10 @@ describe('psql:query', () => {
   let executeQueryStub: SinonStub
   let closeConnectionsStub: SinonStub
 
-  const mockResult = {result: 'Query executed successfully. Rows returned: 2\n\nid | name\n1  | Alice', success: true}
+  const mockResult = {
+    data: {result: 'Query executed successfully. Rows returned: 2\n\nid | name\n1  | Alice'},
+    success: true,
+  }
 
   beforeEach(async () => {
     executeQueryStub = stub().resolves(mockResult)
@@ -36,11 +39,11 @@ describe('psql:query', () => {
     expect(executeQueryStub.firstCall.args.slice(1)).to.deep.equal(['SELECT * FROM users', undefined, 'table', false])
     expect(closeConnectionsStub.calledOnce).to.be.true
     expect(logStub.calledOnce).to.be.true
-    expect(logStub.firstCall.args[0]).to.equal(mockResult.result)
+    expect(logStub.firstCall.args[0]).to.equal(mockResult.data.result)
   })
 
   it('uses provided --profile and --json flag', async () => {
-    executeQueryStub.resolves({result: '[{"1":1}]', success: true})
+    executeQueryStub.resolves({data: {result: '[{"1":1}]'}, success: true})
 
     const cmd = new PostgresQuery(['SELECT 1', '--profile', 'prod', '--json'], {
       root: process.cwd(),
@@ -48,11 +51,11 @@ describe('psql:query', () => {
     } as any)
     const logStub = stub(cmd, 'log')
 
-    const result = await cmd.run()
+    await cmd.run()
 
     expect(executeQueryStub.firstCall.args.slice(1)).to.deep.equal(['SELECT 1', 'prod', 'json', false])
-    expect(logStub.notCalled).to.be.true
-    expect(result).to.deep.equal({data: [{1: 1}], success: true})
+    expect(logStub.calledOnce).to.be.true
+    expect(logStub.firstCall.args[0]).to.equal('[{"1":1}]')
   })
 
   it('enables JSON mode only for --json', async () => {

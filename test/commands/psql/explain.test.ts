@@ -9,8 +9,7 @@ describe('psql:explain', () => {
   let closeConnectionsStub: SinonStub
 
   const mockResult = {
-    plan: [],
-    result: '┌──────┬────────────┐\n│ type │ table      │\n└──────┴────────────┘',
+    data: {plan: [], result: '┌──────┬────────────┐\n│ type │ table      │\n└──────┴────────────┘'},
     success: true,
   }
 
@@ -33,6 +32,7 @@ describe('psql:explain', () => {
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
     const logStub = stub(cmd, 'log')
+    const expectedResult = mockResult.data.result
 
     await cmd.run()
 
@@ -44,7 +44,7 @@ describe('psql:explain', () => {
     ])
     expect(closeConnectionsStub.calledOnce).to.be.true
     expect(logStub.calledOnce).to.be.true
-    expect(logStub.firstCall.args[0]).to.equal(mockResult.result)
+    expect(logStub.firstCall.args[0]).to.equal(expectedResult)
   })
 
   it('uses provided flags', async () => {

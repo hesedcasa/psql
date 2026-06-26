@@ -3,6 +3,7 @@ import type {ApiResult} from '@hesed/plugin-lib'
 import {Flags} from '@oclif/core'
 
 import {BaseCommand} from '../../base-command.js'
+import {TableListData} from '../../psql/database.js'
 import {closeConnections, listTables} from '../../psql/index.js'
 
 export default class PostgresTables extends BaseCommand {
@@ -19,10 +20,13 @@ export default class PostgresTables extends BaseCommand {
     await closeConnections()
 
     if (result.success) {
-      if (!this.jsonEnabled()) this.log(result.result ?? '')
-      return {data: result.tables ?? [], success: true}
+      this.log(result.data?.result ?? '')
+
+      delete (result.data as TableListData).result
+
+      return result
     }
 
-    this.error(result.error ?? 'Failed to list tables')
+    this.error(String(result.error ?? 'Failed to list tables'))
   }
 }
