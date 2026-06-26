@@ -2,86 +2,83 @@
  * Database abstraction interface
  * Defines the contract for the PostgreSQL utility implementation
  */
-
-/**
- * Query execution result for SELECT/EXPLAIN queries
- */
-export interface QueryResult {
-  error?: string
-  message?: string
-  // Human-facing chatter (analysis warnings, row counts) kept separate from
-  // `result` so machine-readable formats can emit only the data payload.
-  notices?: string
-  requiresConfirmation?: boolean
-  result?: string
-  success: boolean
-}
-
-/**
- * Database list result
- */
-export interface DatabaseListResult {
-  databases?: string[]
-  error?: string
-  result?: string
-  success: boolean
-}
-
-/**
- * Table list result
- */
-export interface TableListResult {
-  error?: string
-  result?: string
-  success: boolean
-  tables?: string[]
-}
-
-/**
- * Table structure result
- */
-export interface TableStructureResult {
-  error?: string
-  result?: string
-  structure?: Record<string, unknown>[]
-  success: boolean
-}
-
-/**
- * Index information result
- */
-export interface IndexResult {
-  error?: string
-  indexes?: Record<string, unknown>[]
-  result?: string
-  success: boolean
-}
-
-/**
- * Query plan result
- */
-export interface ExplainResult {
-  error?: string
-  plan?: Record<string, unknown>[]
-  result?: string
-  success: boolean
-}
-
-/**
- * Connection test result
- */
-export interface ConnectionTestResult {
-  database?: string
-  error?: string
-  result?: string
-  success: boolean
-  version?: string
-}
+import type {ApiResult} from '@hesed/plugin-lib'
 
 /**
  * Output format type
  */
 export type OutputFormat = 'csv' | 'json' | 'table' | 'toon'
+
+/**
+ * Query execution payload for SELECT/EXPLAIN/write queries
+ */
+export interface QueryData {
+  message?: string
+  // Human-facing chatter (analysis warnings, row counts) kept separate from
+  // `result` so machine-readable formats can emit only the data payload.
+  notices?: string
+  requiresConfirmation?: boolean
+  // For machine formats (json), result is the parsed payload (object/array);
+  // for human output it is a formatted string. Typed as unknown to cover both.
+  result?: unknown
+}
+
+/**
+ * Database list payload
+ */
+export interface DatabaseListData {
+  databases: string[]
+  result?: string
+}
+
+/**
+ * Table list payload
+ */
+export interface TableListData {
+  result?: string
+  tables: string[]
+}
+
+/**
+ * Table structure payload
+ */
+export interface TableStructureData {
+  result?: string
+  structure: Record<string, unknown>[]
+}
+
+/**
+ * Index information payload
+ */
+export interface IndexData {
+  indexes: Record<string, unknown>[]
+  result?: string
+}
+
+/**
+ * Query plan payload
+ */
+export interface ExplainData {
+  plan: Record<string, unknown>[]
+  result?: string
+}
+
+/**
+ * Connection test payload
+ */
+interface ConnectionTestData {
+  database: string
+  result?: string
+  version: string
+}
+
+export type ConnectionTestResult = ApiResult & {data?: ConnectionTestData}
+export type DatabaseListResult = ApiResult & {data?: DatabaseListData}
+export type ExplainResult = ApiResult & {data?: ExplainData}
+export type IndexResult = ApiResult & {data?: IndexData}
+export type QueryResult = ApiResult & {data?: QueryData}
+export type TableListResult = ApiResult & {data?: TableListData}
+export type TableStructureResult = ApiResult & {data?: TableStructureData}
 
 /**
  * Database utility interface

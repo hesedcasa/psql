@@ -8,7 +8,10 @@ describe('psql:list-tables', () => {
   let listTablesStub: SinonStub
   let closeConnectionsStub: SinonStub
 
-  const mockResult = {result: 'Tables in database:\n  • users\n  • orders', success: true, tables: ['users', 'orders']}
+  const mockResult = {
+    data: {result: 'Tables in database:\n  • users\n  • orders', tables: ['users', 'orders']},
+    success: true,
+  }
 
   beforeEach(async () => {
     listTablesStub = stub().resolves(mockResult)
@@ -28,13 +31,15 @@ describe('psql:list-tables', () => {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
+    const logStub = stub(cmd, 'log')
 
     const result = await cmd.run()
 
     expect(listTablesStub.calledOnce).to.be.true
     expect(listTablesStub.firstCall.args[1]).to.be.undefined
     expect(closeConnectionsStub.calledOnce).to.be.true
-    expect(result).to.deep.equal(mockResult.tables)
+    expect(logStub.calledOnce).to.be.true
+    expect(result).to.deep.equal(mockResult)
   })
 
   it('uses provided --profile flag', async () => {
@@ -42,6 +47,7 @@ describe('psql:list-tables', () => {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
+    stub(cmd, 'log')
 
     await cmd.run()
 

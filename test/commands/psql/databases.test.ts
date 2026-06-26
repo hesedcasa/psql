@@ -8,7 +8,10 @@ describe('psql:list-databases', () => {
   let listDatabasesStub: SinonStub
   let closeConnectionsStub: SinonStub
 
-  const mockResult = {databases: ['mydb', 'testdb'], result: 'Databases:\n  • mydb\n  • testdb', success: true}
+  const mockResult = {
+    data: {databases: ['mydb', 'testdb'], result: 'Databases:\n  • mydb\n  • testdb'},
+    success: true,
+  }
 
   beforeEach(async () => {
     listDatabasesStub = stub().resolves(mockResult)
@@ -28,13 +31,15 @@ describe('psql:list-databases', () => {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
+    const logStub = stub(cmd, 'log')
 
     const result = await cmd.run()
 
     expect(listDatabasesStub.calledOnce).to.be.true
     expect(listDatabasesStub.firstCall.args[1]).to.be.undefined
     expect(closeConnectionsStub.calledOnce).to.be.true
-    expect(result).to.deep.equal(mockResult.databases)
+    expect(logStub.calledOnce).to.be.true
+    expect(result).to.deep.equal(mockResult)
   })
 
   it('uses provided --profile flag', async () => {
@@ -42,6 +47,7 @@ describe('psql:list-databases', () => {
       root: process.cwd(),
       runHook: stub().resolves({failures: [], successes: []}),
     } as any)
+    stub(cmd, 'log')
 
     await cmd.run()
 
