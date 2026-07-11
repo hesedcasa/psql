@@ -128,13 +128,17 @@ Stored at `~/.config/psql/pg-config.json` (multi-profile format):
       "user": "postgres",
       "password": "secret",
       "database": "mydb",
-      "ssl": false
+      "ssl": false,
+      "maxConcurrentQueries": 5,
+      "queryQueueTimeoutMs": 60000
     }
   }
 }
 ```
 
 Auth commands (`pg psql auth add/test/update`) manage this file. `auth add` creates the file with mode `0o600`.
+
+`maxConcurrentQueries` (optional, default 5) caps concurrent queries per profile — queries beyond the cap print a waiting notice to stderr and wait until a running query finishes. `queryQueueTimeoutMs` (optional, default 60000) is how long a query may wait for a free slot before failing with a timeout error; both can be set per profile, falling back to the safety config.
 
 ## Testing
 
@@ -162,13 +166,13 @@ stub(cmd, 'log')
 await cmd.run()
 ```
 
-**PostgreSQL layer tests** (`test/psql/postgres-utils.test.ts`) — mock `pg.Client` constructor via esmock:
+**PostgreSQL layer tests** (`test/psql/postgres-utils.test.ts`) — mock `pg.Pool` constructor via esmock:
 
 ```typescript
-mockClient = {connect: stub().resolves(), end: stub().resolves(), query: stub()}
-const MockClient = stub().returns(mockClient)
+mockPool = {end: stub().resolves(), query: stub()}
+const MockPool = stub().returns(mockPool)
 const imported = await esmock('../../src/psql/postgres-utils.js', {
-  pg: {default: {Client: MockClient}},
+  pg: {default: {Pool: MockPool}},
 })
 // query mock returns pg result format: {rows, fields, rowCount, command}
 ```

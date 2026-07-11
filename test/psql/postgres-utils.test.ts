@@ -3,10 +3,15 @@ import {expect} from 'chai'
 import esmock from 'esmock'
 import {type SinonStub, stub} from 'sinon'
 
+const flushMicrotasks = async () =>
+  new Promise((resolve) => {
+    setImmediate(resolve)
+  })
+
 describe('postgres-utils: PostgreSQLUtil', () => {
   let PostgreSQLUtil: any
-  let MockClient: SinonStub
-  let mockClient: {connect: SinonStub; end: SinonStub; query: SinonStub}
+  let MockPool: SinonStub
+  let mockPool: {end: SinonStub; query: SinonStub}
 
   const mockConfig = {
     defaultFormat: 'table' as const,
@@ -22,22 +27,21 @@ describe('postgres-utils: PostgreSQLUtil', () => {
   }
 
   beforeEach(async () => {
-    mockClient = {
-      connect: stub().resolves(),
+    mockPool = {
       end: stub().resolves(),
       query: stub(),
     }
-    MockClient = stub().returns(mockClient)
+    MockPool = stub().returns(mockPool)
 
     const imported = await esmock('../../src/psql/postgres-utils.js', {
-      pg: {default: {Client: MockClient}},
+      pg: {default: {Pool: MockPool}},
     })
     PostgreSQLUtil = imported.PostgreSQLUtil
   })
 
   describe('listDatabases', () => {
     it('returns list of databases', async () => {
-      mockClient.query.resolves({
+      mockPool.query.resolves({
         command: 'SELECT',
         fields: [{name: 'datname'}],
         rowCount: 2,
@@ -53,7 +57,7 @@ describe('postgres-utils: PostgreSQLUtil', () => {
     })
 
     it('returns error on query failure', async () => {
-      mockClient.query.rejects(new Error('Access denied'))
+      mockPool.query.rejects(new Error('Access denied'))
 
       const util = new PostgreSQLUtil(mockConfig)
       const result = await util.listDatabases('local')
@@ -81,7 +85,7 @@ describe('postgres-utils: PostgreSQLUtil', () => {
     })
 
     it('executes SELECT with auto LIMIT applied', async () => {
-      mockClient.query.resolves({
+      mockPool.query.resolves({
         command: 'SELECT',
         fields: [{name: 'id'}, {name: 'name'}],
         rowCount: 1,
@@ -96,7 +100,7 @@ describe('postgres-utils: PostgreSQLUtil', () => {
     })
 
     it('skips confirmation when skipConfirmation is true', async () => {
-      mockClient.query.resolves({
+      mockPool.query.resolves({
         command: 'DELETE',
         fields: [],
         rowCount: 3,
@@ -111,75 +115,226 @@ describe('postgres-utils: PostgreSQLUtil', () => {
     })
   })
 
-  describe('getConnection', () => {
-    it('runs SELECT 1 health check when reusing a cached connection', async () => {
-      mockClient.query.resolves({
-        command: 'SELECT',
-        fields: [{name: 'datname'}],
-        rowCount: 1,
-        rows: [{datname: 'mydb'}],
-      })
+  describe('concurrency limit', () => {
+    const limitedConfig = {
+      ...mockConfig,
+      safety: {...mockConfig.safety, maxConcurrentQueries: 2},
+    }
 
-      const util = new PostgreSQLUtil(mockConfig)
-      await util.listDatabases('local') // creates connection, 1 query call
-      await util.listDatabases('local') // reuses connection: SELECT 1 + actual query = 2 more calls
+    it('sizes the connection pool to the effective query limit', async () => {
+      mockPool.query.resolves({command: 'SELECT', fields: [{name: 'datname'}], rowCount: 1, rows: [{datname: 'mydb'}]})
 
-      expect(MockClient.callCount).to.equal(1)
-      expect(mockClient.query.callCount).to.equal(3)
-      expect(mockClient.query.firstCall.args[0]).to.not.equal('SELECT 1')
-      expect(mockClient.query.secondCall.args[0]).to.equal('SELECT 1')
+      const util = new PostgreSQLUtil(limitedConfig)
+      await util.listDatabases('local')
+
+      expect(MockPool.calledOnce).to.be.true
+      expect(MockPool.firstCall.args[0].max).to.equal(2)
     })
 
-    it('reconnects when health check fails on cached connection', async () => {
-      const dbResult = {
-        command: 'SELECT',
-        fields: [{name: 'datname'}],
-        rowCount: 1,
-        rows: [{datname: 'mydb'}],
-      }
+    it('queues queries beyond the limit until a running query finishes', async () => {
+      const resolvers: Array<(value: unknown) => void> = []
+      mockPool.query.callsFake(
+        async () =>
+          new Promise((resolve) => {
+            resolvers.push(resolve)
+          }),
+      )
 
-      mockClient.query
-        .onFirstCall()
-        .resolves(dbResult) // first listDatabases actual query
+      const util = new PostgreSQLUtil(limitedConfig)
+      const first = util.listDatabases('local')
+      const second = util.listDatabases('local')
+      const third = util.listDatabases('local')
+
+      await flushMicrotasks()
+      expect(mockPool.query.callCount).to.equal(2)
+
+      resolvers[0]({command: 'SELECT', fields: [{name: 'datname'}], rowCount: 1, rows: [{datname: 'mydb'}]})
+      await first
+      await flushMicrotasks()
+      expect(mockPool.query.callCount).to.equal(3)
+
+      resolvers[1]({command: 'SELECT', fields: [{name: 'datname'}], rowCount: 1, rows: [{datname: 'mydb'}]})
+      resolvers[2]({command: 'SELECT', fields: [{name: 'datname'}], rowCount: 1, rows: [{datname: 'mydb'}]})
+      const [secondResult, thirdResult] = await Promise.all([second, third])
+      expect(secondResult.success).to.be.true
+      expect(thirdResult.success).to.be.true
+    })
+
+    it('frees the slot when a query fails so waiting queries still run', async () => {
+      mockPool.query.onFirstCall().rejects(new Error('boom'))
+      mockPool.query
         .onSecondCall()
-        .rejects(new Error('connection terminated')) // health check on reuse
-        .onThirdCall()
-        .resolves(dbResult) // second listDatabases actual query after reconnect
+        .resolves({command: 'SELECT', fields: [{name: 'datname'}], rowCount: 1, rows: [{datname: 'mydb'}]})
 
-      const util = new PostgreSQLUtil(mockConfig)
-      await util.listDatabases('local') // creates connection
-      const result = await util.listDatabases('local') // health check fails → reconnects
+      const util = new PostgreSQLUtil({...mockConfig, safety: {...mockConfig.safety, maxConcurrentQueries: 1}})
+      const [failed, succeeded] = await Promise.all([util.listDatabases('local'), util.listDatabases('local')])
 
-      expect(result.success).to.be.true
-      expect(MockClient.callCount).to.equal(2) // new client created after stale connection
+      expect(failed.success).to.be.false
+      expect(failed.error).to.include('boom')
+      expect(succeeded.success).to.be.true
     })
 
-    it('removes failed connection promise and throws when connect fails', async () => {
-      mockClient.connect.rejects(new Error('ECONNREFUSED'))
+    it('rejects queued queries when closeAll is called', async () => {
+      const resolvers: Array<(value: unknown) => void> = []
+      mockPool.query.callsFake(
+        async () =>
+          new Promise((resolve) => {
+            resolvers.push(resolve)
+          }),
+      )
 
-      const util = new PostgreSQLUtil(mockConfig)
-      const result = await util.listDatabases('local')
+      const util = new PostgreSQLUtil({...mockConfig, safety: {...mockConfig.safety, maxConcurrentQueries: 1}})
+      const running = util.listDatabases('local')
+      const queued = util.listDatabases('local')
 
-      expect(result.success).to.be.false
-      expect(result.error).to.include('ECONNREFUSED')
+      await flushMicrotasks()
+      expect(mockPool.query.callCount).to.equal(1)
 
-      // After failure, a second call should attempt a fresh connection
-      mockClient.connect.resolves()
-      mockClient.query.resolves({
-        command: 'SELECT',
-        fields: [{name: 'datname'}],
-        rowCount: 1,
-        rows: [{datname: 'mydb'}],
+      await util.closeAll()
+
+      const queuedResult = await queued
+      expect(queuedResult.success).to.be.false
+      expect(queuedResult.error).to.include('closed while the query was waiting')
+
+      resolvers[0]({command: 'SELECT', fields: [{name: 'datname'}], rowCount: 1, rows: [{datname: 'mydb'}]})
+      const runningResult = await running
+      expect(runningResult.success).to.be.true
+    })
+
+    it('fails a queued query that waits longer than queryQueueTimeoutMs', async () => {
+      const resolvers: Array<(value: unknown) => void> = []
+      mockPool.query.callsFake(
+        async () =>
+          new Promise((resolve) => {
+            resolvers.push(resolve)
+          }),
+      )
+
+      const util = new PostgreSQLUtil({
+        ...mockConfig,
+        safety: {...mockConfig.safety, maxConcurrentQueries: 1, queryQueueTimeoutMs: 20},
       })
-      const retryResult = await util.listDatabases('local')
-      expect(retryResult.success).to.be.true
-      expect(MockClient.callCount).to.equal(2)
+      const running = util.listDatabases('local')
+      const queued = util.listDatabases('local')
+
+      const queuedResult = await queued
+      expect(queuedResult.success).to.be.false
+      expect(queuedResult.error).to.include('Timed out after 0.02s waiting for a free query slot')
+
+      // The slot itself is unaffected: the running query still completes,
+      // and its release must not grant a slot to the timed-out waiter.
+      resolvers[0]({command: 'SELECT', fields: [{name: 'datname'}], rowCount: 1, rows: [{datname: 'mydb'}]})
+      const runningResult = await running
+      expect(runningResult.success).to.be.true
+
+      // A fresh query can still acquire the freed slot afterwards.
+      const after = util.listDatabases('local')
+      await flushMicrotasks()
+      resolvers[1]({command: 'SELECT', fields: [{name: 'datname'}], rowCount: 1, rows: [{datname: 'mydb'}]})
+      const afterResult = await after
+      expect(afterResult.success).to.be.true
+    })
+
+    it('prefers the profile-level queryQueueTimeoutMs over the safety default', async () => {
+      const resolvers: Array<(value: unknown) => void> = []
+      mockPool.query.callsFake(
+        async () =>
+          new Promise((resolve) => {
+            resolvers.push(resolve)
+          }),
+      )
+
+      // Safety allows a long wait, but the profile times out almost immediately.
+      const util = new PostgreSQLUtil({
+        ...mockConfig,
+        profiles: {
+          local: {...mockConfig.profiles.local, maxConcurrentQueries: 1, queryQueueTimeoutMs: 20},
+        },
+        safety: {...mockConfig.safety, queryQueueTimeoutMs: 60_000},
+      })
+      const running = util.listDatabases('local')
+      const queued = await util.listDatabases('local')
+
+      expect(queued.success).to.be.false
+      expect(queued.error).to.include('Timed out after 0.02s')
+
+      resolvers[0]({command: 'SELECT', fields: [{name: 'datname'}], rowCount: 1, rows: [{datname: 'mydb'}]})
+      const runningResult = await running
+      expect(runningResult.success).to.be.true
+    })
+
+    it('prefers the profile-level maxConcurrentQueries over the safety default', async () => {
+      const resolvers: Array<(value: unknown) => void> = []
+      mockPool.query.callsFake(
+        async () =>
+          new Promise((resolve) => {
+            resolvers.push(resolve)
+          }),
+      )
+
+      // Safety allows 2, but the profile itself only allows 1.
+      const config = {
+        ...limitedConfig,
+        profiles: {
+          local: {...limitedConfig.profiles.local, maxConcurrentQueries: 1},
+        },
+      }
+      const util = new PostgreSQLUtil(config)
+      const first = util.listDatabases('local')
+      const second = util.listDatabases('local')
+
+      await flushMicrotasks()
+      expect(mockPool.query.callCount).to.equal(1)
+
+      resolvers[0]({command: 'SELECT', fields: [{name: 'datname'}], rowCount: 1, rows: [{datname: 'mydb'}]})
+      await first
+      await flushMicrotasks()
+      expect(mockPool.query.callCount).to.equal(2)
+
+      resolvers[1]({command: 'SELECT', fields: [{name: 'datname'}], rowCount: 1, rows: [{datname: 'mydb'}]})
+      await second
+    })
+
+    it('tracks limits per profile independently', async () => {
+      const resolvers: Array<(value: unknown) => void> = []
+      mockPool.query.callsFake(
+        async () =>
+          new Promise((resolve) => {
+            resolvers.push(resolve)
+          }),
+      )
+
+      const config = {
+        ...limitedConfig,
+        profiles: {
+          ...limitedConfig.profiles,
+          other: {database: 'otherdb', host: 'localhost', password: 'secret', port: 5432, user: 'postgres'},
+        },
+        safety: {...limitedConfig.safety, maxConcurrentQueries: 1},
+      }
+      const util = new PostgreSQLUtil(config)
+      const local1 = util.listDatabases('local')
+      const local2 = util.listDatabases('local')
+      const other = util.listDatabases('other')
+
+      await flushMicrotasks()
+      // One slot per profile: local1 and other run, local2 waits.
+      expect(mockPool.query.callCount).to.equal(2)
+
+      for (const resolve of resolvers)
+        resolve({command: 'SELECT', fields: [{name: 'datname'}], rowCount: 1, rows: [{datname: 'mydb'}]})
+      await Promise.all([local1, other])
+      await flushMicrotasks()
+      expect(mockPool.query.callCount).to.equal(3)
+
+      resolvers[2]({command: 'SELECT', fields: [{name: 'datname'}], rowCount: 1, rows: [{datname: 'mydb'}]})
+      await local2
     })
   })
 
   describe('closeAll', () => {
     it('closes all pooled connections', async () => {
-      mockClient.query.resolves({
+      mockPool.query.resolves({
         command: 'SELECT',
         fields: [{name: 'version'}, {name: 'current_database'}],
         rowCount: 1,
@@ -191,7 +346,7 @@ describe('postgres-utils: PostgreSQLUtil', () => {
       await util.testConnection('local') // creates a connection
       await util.closeAll()
 
-      expect(mockClient.end.calledOnce).to.be.true
+      expect(mockPool.end.calledOnce).to.be.true
     })
 
     it('closes all connections even if one end() rejects', async () => {
@@ -203,21 +358,21 @@ describe('postgres-utils: PostgreSQLUtil', () => {
         },
       }
 
-      mockClient.query.resolves({
+      mockPool.query.resolves({
         command: 'SELECT',
         fields: [{name: 'version'}, {name: 'current_database'}],
         rowCount: 1,
         // eslint-disable-next-line camelcase
         rows: [{current_database: 'mydb', version: 'PostgreSQL 15.4'}],
       })
-      mockClient.end.onFirstCall().rejects(new Error('socket hang up'))
+      mockPool.end.onFirstCall().rejects(new Error('socket hang up'))
 
       const util = new PostgreSQLUtil(twoProfileConfig)
       await util.testConnection('local')
       await util.testConnection('remote')
 
       await util.closeAll() // should not throw
-      expect(mockClient.end.callCount).to.equal(2)
+      expect(mockPool.end.callCount).to.equal(2)
     })
   })
 })

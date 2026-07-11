@@ -22,6 +22,8 @@ let cachedConfig: null | PgConfig = null
 const DEFAULT_SAFETY_CONFIG = {
   blacklistedOperations: ['DROP DATABASE'],
   defaultLimit: 100,
+  maxConcurrentQueries: 5,
+  queryQueueTimeoutMs: 60_000,
   requireConfirmationFor: ['DELETE', 'UPDATE', 'DROP', 'TRUNCATE', 'ALTER'],
 }
 
