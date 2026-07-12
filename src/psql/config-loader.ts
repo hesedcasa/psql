@@ -3,14 +3,18 @@ import type {ClientConfig} from 'pg'
 interface SafetyConfig {
   blacklistedOperations: string[]
   defaultLimit: number
+  maxConcurrentQueries?: number
+  queryQueueTimeoutMs?: number
   requireConfirmationFor: string[]
 }
 
 export interface DatabaseProfile {
   database: string
   host: string
+  maxConcurrentQueries?: number
   password: string
   port: number
+  queryQueueTimeoutMs?: number
   ssl?: boolean
   user: string
 }
