@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/hesedcasa/psql/compare/v0.5.2...v0.6.0) (2026-07-12)
+
+
+### 🎉 Features
+
+* limit concurrent queries per database profile ([#74](https://github.com/hesedcasa/psql/issues/74)) ([b0a537b](https://github.com/hesedcasa/psql/commit/b0a537b886ed53df9256b51a27fbc24d13c0792a))
+
 ## [0.5.2](https://github.com/hesedcasa/psql/compare/v0.5.1...v0.5.2) (2026-06-26)
 
 
