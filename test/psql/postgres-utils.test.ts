@@ -11,7 +11,7 @@ const flushMicrotasks = async () =>
 describe('postgres-utils: PostgreSQLUtil', () => {
   let PostgreSQLUtil: any
   let MockPool: SinonStub
-  let mockPool: {end: SinonStub; query: SinonStub}
+  let mockPool: {end: SinonStub; on: SinonStub; query: SinonStub}
 
   const mockConfig = {
     defaultFormat: 'table' as const,
@@ -29,6 +29,7 @@ describe('postgres-utils: PostgreSQLUtil', () => {
   beforeEach(async () => {
     mockPool = {
       end: stub().resolves(),
+      on: stub(),
       query: stub(),
     }
     MockPool = stub().returns(mockPool)
@@ -129,6 +130,25 @@ describe('postgres-utils: PostgreSQLUtil', () => {
 
       expect(MockPool.calledOnce).to.be.true
       expect(MockPool.firstCall.args[0].max).to.equal(2)
+    })
+
+    it('registers an error listener so idle pool errors do not crash the process', async () => {
+      mockPool.query.resolves({command: 'SELECT', fields: [{name: 'datname'}], rowCount: 1, rows: [{datname: 'mydb'}]})
+      const stderr = stub(process.stderr, 'write')
+
+      try {
+        const util = new PostgreSQLUtil(mockConfig)
+        await util.listDatabases('local')
+
+        const errorHandler = mockPool.on.getCalls().find((call) => call.args[0] === 'error')?.args[1]
+        expect(errorHandler, 'pool should register an "error" listener').to.be.a('function')
+
+        // Emitting an idle-client error must be handled (logged), not rethrown.
+        expect(() => errorHandler(new Error('server closed the connection unexpectedly'))).to.not.throw()
+        expect(stderr.calledWithMatch('server closed the connection unexpectedly')).to.be.true
+      } finally {
+        stderr.restore()
+      }
     })
 
     it('queues queries beyond the limit until a running query finishes', async () => {

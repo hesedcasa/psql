@@ -375,6 +375,12 @@ export class PostgreSQLUtil implements DatabaseUtil {
       ...getPgConnectionOptions(this.config, profileName),
       max: this.getQueryLimit(profileName),
     })
+    // pg.Pool emits 'error' when an idle client fails (e.g. the database
+    // restarts or drops the socket). Without a listener Node treats it as an
+    // unhandled 'error' event and terminates the CLI; log it instead.
+    pool.on('error', (error) => {
+      process.stderr.write(`PostgreSQL pool error for profile "${profileName}": ${error.message}\n`)
+    })
     this.pools.set(profileName, pool)
     return pool
   }
