@@ -1,8 +1,6 @@
 import {expect} from 'chai'
 
-import type {PgConfig} from '../../src/psql/config-loader.js'
-
-import {getPgConnectionOptions} from '../../src/psql/config-loader.js'
+import {getPgConnectionOptions, type PgConfig} from '../../src/psql/config-loader.js'
 
 describe('psql/config-loader', () => {
   const mockConfig: PgConfig = {

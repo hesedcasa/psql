@@ -1,14 +1,14 @@
-interface BlacklistCheckResult {
+type BlacklistCheckResult = {
   allowed: boolean
   reason?: string
 }
 
-interface ConfirmationCheckResult {
+type ConfirmationCheckResult = {
   message?: string
   required: boolean
 }
 
-interface QueryWarning {
+type QueryWarning = {
   level: 'info' | 'warning'
   message: string
   suggestion: string
@@ -48,7 +48,7 @@ export function requiresConfirmation(query: string, confirmationOperations: stri
 
 export function getQueryType(query: string): string {
   const normalizedQuery = query.trim().toUpperCase()
-  const firstWord = normalizedQuery.split(/\s+/)[0]
+  const firstWord = normalizedQuery.split(/\s+/, 1)[0]
 
   const knownTypes = [
     'SELECT',

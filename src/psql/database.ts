@@ -12,7 +12,7 @@ export type OutputFormat = 'csv' | 'json' | 'table' | 'toon'
 /**
  * Query execution payload for SELECT/EXPLAIN/write queries
  */
-export interface QueryData {
+export type QueryData = {
   message?: string
   // Human-facing chatter (analysis warnings, row counts) kept separate from
   // `result` so machine-readable formats can emit only the data payload.
@@ -26,7 +26,7 @@ export interface QueryData {
 /**
  * Database list payload
  */
-export interface DatabaseListData {
+export type DatabaseListData = {
   databases: string[]
   result?: string
 }
@@ -34,7 +34,7 @@ export interface DatabaseListData {
 /**
  * Table list payload
  */
-export interface TableListData {
+export type TableListData = {
   result?: string
   tables: string[]
 }
@@ -42,31 +42,31 @@ export interface TableListData {
 /**
  * Table structure payload
  */
-export interface TableStructureData {
+export type TableStructureData = {
   result?: string
-  structure: Record<string, unknown>[]
+  structure: Array<Record<string, unknown>>
 }
 
 /**
  * Index information payload
  */
-export interface IndexData {
-  indexes: Record<string, unknown>[]
+export type IndexData = {
+  indexes: Array<Record<string, unknown>>
   result?: string
 }
 
 /**
  * Query plan payload
  */
-export interface ExplainData {
-  plan: Record<string, unknown>[]
+export type ExplainData = {
+  plan: Array<Record<string, unknown>>
   result?: string
 }
 
 /**
  * Connection test payload
  */
-interface ConnectionTestData {
+type ConnectionTestData = {
   database: string
   result?: string
   version: string
@@ -83,7 +83,7 @@ export type TableStructureResult = ApiResult & {data?: TableStructureData}
 /**
  * Database utility interface
  */
-export interface DatabaseUtil {
+export type DatabaseUtil = {
   closeAll(): Promise<void>
   describeTable(profileName: string, table: string, format?: OutputFormat): Promise<TableStructureResult>
   executeQuery(

@@ -3,18 +3,20 @@ import type {ApiResult} from '@hesed/plugin-lib'
 import {Args, Flags} from '@oclif/core'
 
 import {BaseCommand} from '../../base-command.js'
-import {TableStructureData} from '../../psql/database.js'
+import {type TableStructureData} from '../../psql/database.js'
 import {closeConnections, describeTable} from '../../psql/index.js'
 
 export default class PostgresDescribeTable extends BaseCommand {
   static override args = {
     table: Args.string({description: 'Table name to describe', required: true}),
   }
+
   static override description = 'Describe the structure of a PostgreSQL table'
   static override examples = [
     '<%= config.bin %> <%= command.id %> users --toon',
     '<%= config.bin %> <%= command.id %> orders -p prod',
   ]
+
   static override flags = {
     profile: Flags.string({char: 'p', description: 'Database profile name from config', required: false}),
     toon: Flags.boolean({default: false, description: 'Output in toon format'}),

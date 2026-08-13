@@ -1,6 +1,5 @@
 import pg from 'pg'
 
-import type {PgConfig} from './config-loader.js'
 import type {
   ConnectionTestResult,
   DatabaseListResult,
@@ -12,29 +11,33 @@ import type {
   TableListResult,
   TableStructureResult,
 } from './database.js'
-import type {PgField, PgRow} from './formatters.js'
 
-import {getPgConnectionOptions} from './config-loader.js'
-import {FORMATTERS} from './formatters.js'
+import {getPgConnectionOptions, type PgConfig} from './config-loader.js'
+import {FORMATTERS, type PgField, type PgRow} from './formatters.js'
 import {analyzeQuery, applyDefaultLimit, checkBlacklist, getQueryType, requiresConfirmation} from './query-validator.js'
 
 const DEFAULT_MAX_CONCURRENT_QUERIES = 5
 const DEFAULT_QUEUE_TIMEOUT_MS = 60_000
 
-interface QueryWaiter {
+// Formats that must emit only the data payload on stdout.
+const MACHINE_FORMATS = new Set<string>(['csv', 'json', 'toon'])
+// Commands whose result is a row set rather than a write acknowledgement.
+const READ_COMMANDS = new Set<string>(['EXPLAIN', 'SELECT'])
+
+type QueryWaiter = {
   grant: () => void
   reject: (error: Error) => void
 }
 
-interface QuerySlotState {
+type QuerySlotState = {
   active: number
   waiting: QueryWaiter[]
 }
 
 export class PostgreSQLUtil implements DatabaseUtil {
-  private config: PgConfig
-  private pools: Map<string, pg.Pool>
-  private querySlots: Map<string, QuerySlotState>
+  private readonly config: PgConfig
+  private readonly pools: Map<string, pg.Pool>
+  private readonly querySlots: Map<string, QuerySlotState>
 
   constructor(config: PgConfig) {
     this.config = config
@@ -45,7 +48,9 @@ export class PostgreSQLUtil implements DatabaseUtil {
   async closeAll(): Promise<void> {
     // Reject queued queries first so nothing waits forever on a closed util.
     for (const slot of this.querySlots.values()) {
-      for (const waiter of slot.waiting.splice(0)) {
+      const {waiting} = slot
+      slot.waiting = []
+      for (const waiter of waiting) {
         waiter.reject(new Error('Connections were closed while the query was waiting for a free slot'))
       }
     }
@@ -54,7 +59,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
 
     const pools = [...this.pools.values()]
     this.pools.clear()
-    await Promise.allSettled(pools.map((pool) => pool.end()))
+    await Promise.allSettled(pools.map(async (pool) => pool.end()))
   }
 
   async describeTable(
@@ -113,7 +118,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
 
     // Machine-readable formats must emit only the data payload on stdout, so
     // analysis warnings and status lines are collected as notices instead.
-    const machineFormat = format === 'json' || format === 'csv' || format === 'toon'
+    const isMachineFormat = MACHINE_FORMATS.has(format)
     const notices: string[] = []
 
     const warnings = analyzeQuery(query)
@@ -136,7 +141,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     try {
       const result = await this.runQuery(profileName, finalQuery)
 
-      const isRead = result.rows.length > 0 || result.command === 'SELECT' || result.command === 'EXPLAIN'
+      const isRead = result.rows.length > 0 || READ_COMMANDS.has(result.command)
       let data = isRead
         ? this.formatReadResult(result.rows, result.fields, format, notices)
         : this.formatWriteResult(result.rowCount ?? 0, notices, format)
@@ -150,8 +155,8 @@ export class PostgreSQLUtil implements DatabaseUtil {
       // For machine formats the data is returned alone and notices go to stderr.
       return {
         data: {
-          notices: machineFormat ? notice : undefined,
-          result: machineFormat ? data : `${notice}\n\n${data}`,
+          notices: isMachineFormat ? notice : undefined,
+          result: isMachineFormat ? data : `${notice}\n\n${data}`,
         },
         success: true,
       }
@@ -270,11 +275,13 @@ export class PostgreSQLUtil implements DatabaseUtil {
       )
 
       const info = result.rows[0]
+      const database = info.current_database as string
+      const version = info.version as string
       return {
         data: {
-          database: info.current_database as string,
-          result: `Connection successful!\n\nProfile: ${profileName}\nPostgreSQL Version: ${info.version}\nCurrent Database: ${info.current_database}`,
-          version: info.version as string,
+          database,
+          result: `Connection successful!\n\nProfile: ${profileName}\nPostgreSQL Version: ${version}\nCurrent Database: ${database}`,
+          version,
         },
         success: true,
       }
@@ -289,7 +296,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
 
   // Grants a query slot for the profile, or waits until one frees up. The
   // returned release callback must be invoked exactly once per acquisition.
-  private acquireQuerySlot(profileName: string): Promise<() => void> {
+  private async acquireQuerySlot(profileName: string): Promise<() => void> {
     const limit = this.getQueryLimit(profileName)
     let slot = this.querySlots.get(profileName)
     if (!slot) {
@@ -309,7 +316,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
 
     if (state.active < limit) {
       state.active += 1
-      return Promise.resolve(release)
+      return release
     }
 
     const timeoutMs =
@@ -396,10 +403,10 @@ export class PostgreSQLUtil implements DatabaseUtil {
 
   // All queries go through here so concurrent load on the same profile is
   // capped at maxConcurrentQueries; excess queries wait for a free slot.
-  private async runQuery(profileName: string, sql: string): Promise<pg.QueryResult> {
+  private async runQuery(profileName: string, sql: string): Promise<pg.QueryResult<PgRow>> {
     const release = await this.acquireQuerySlot(profileName)
     try {
-      return await this.getPool(profileName).query(sql)
+      return await this.getPool(profileName).query<PgRow>(sql)
     } finally {
       release()
     }

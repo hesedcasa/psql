@@ -3,19 +3,21 @@ import type {ApiResult} from '@hesed/plugin-lib'
 import {Args, Flags} from '@oclif/core'
 
 import {BaseCommand} from '../../base-command.js'
-import {QueryData} from '../../psql/database.js'
+import {type QueryData} from '../../psql/database.js'
 import {closeConnections, executeQuery} from '../../psql/index.js'
 
 export default class PostgresQuery extends BaseCommand {
   static override args = {
     query: Args.string({description: 'SQL query to execute', required: true}),
   }
+
   static override description = 'Execute a SQL query against a PostgreSQL database'
   static override examples = [
     '<%= config.bin %> <%= command.id %> "SELECT * FROM users LIMIT 10" --json',
     '<%= config.bin %> <%= command.id %> "UPDATE users SET email = \'user@email.com\' WHERE id = 999"',
     '<%= config.bin %> <%= command.id %> "DELETE FROM sessions" -p prod --skip-confirmation',
   ]
+
   static override flags = {
     profile: Flags.string({char: 'p', description: 'Database profile name from config', required: false}),
     'skip-confirmation': Flags.boolean({
