@@ -1,6 +1,6 @@
 import type {ClientConfig} from 'pg'
 
-interface SafetyConfig {
+type SafetyConfig = {
   blacklistedOperations: string[]
   defaultLimit: number
   maxConcurrentQueries?: number
@@ -8,7 +8,7 @@ interface SafetyConfig {
   requireConfirmationFor: string[]
 }
 
-export interface DatabaseProfile {
+export type DatabaseProfile = {
   database: string
   host: string
   maxConcurrentQueries?: number
@@ -19,7 +19,7 @@ export interface DatabaseProfile {
   user: string
 }
 
-export interface PgConfig {
+export type PgConfig = {
   defaultFormat: 'csv' | 'json' | 'table' | 'toon'
   defaultProfile: string
   profiles: Record<string, DatabaseProfile>

@@ -3,7 +3,7 @@ import type {ApiResult} from '@hesed/plugin-lib'
 import {Flags} from '@oclif/core'
 
 import {BaseCommand} from '../../base-command.js'
-import {DatabaseListData} from '../../psql/database.js'
+import {type DatabaseListData} from '../../psql/database.js'
 import {closeConnections, listDatabases} from '../../psql/index.js'
 
 export default class PostgresDatabases extends BaseCommand {

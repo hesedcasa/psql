@@ -126,9 +126,11 @@ export async function testDirectConnection(profile: DatabaseProfile): Promise<Co
 }
 
 export async function closeConnections(): Promise<void> {
-  if (pgUtil) {
-    await pgUtil.closeAll()
-    pgUtil = null
-    cachedConfig = null
+  if (!pgUtil) {
+    return
   }
+
+  await pgUtil.closeAll()
+  pgUtil = null
+  cachedConfig = null
 }

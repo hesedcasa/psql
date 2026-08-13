@@ -358,7 +358,6 @@ describe('postgres-utils: PostgreSQLUtil', () => {
         command: 'SELECT',
         fields: [{name: 'version'}, {name: 'current_database'}],
         rowCount: 1,
-        // eslint-disable-next-line camelcase
         rows: [{current_database: 'mydb', version: 'PostgreSQL 15.4'}],
       })
 
@@ -382,7 +381,6 @@ describe('postgres-utils: PostgreSQLUtil', () => {
         command: 'SELECT',
         fields: [{name: 'version'}, {name: 'current_database'}],
         rowCount: 1,
-        // eslint-disable-next-line camelcase
         rows: [{current_database: 'mydb', version: 'PostgreSQL 15.4'}],
       })
       mockPool.end.onFirstCall().rejects(new Error('socket hang up'))
