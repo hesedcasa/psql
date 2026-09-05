@@ -235,27 +235,47 @@ describe('e2e: safety rules and writes', () => {
     // query-slot queue (which only ever sees one query per CLI run).
     const results = await Promise.all(
       Array.from({length: 8}, async (_, i) =>
-        runCli(['psql', 'query', `SELECT pg_sleep(0.2) IS NULL AS slept, ${i} AS n`], configDir),
+        runCliJson<{data: {result: Row[]}}>(
+          ['psql', 'query', `SELECT pg_sleep(0.2) IS NULL AS slept, ${i} AS n`],
+          configDir,
+        ),
       ),
     )
 
-    for (const result of results) {
-      expect(result.code, result.stderr).to.equal(0)
+    // A run that exits 0 without actually executing the query would still
+    // pass an exit-code-only check, so also confirm each invocation got back
+    // the exact row it asked for.
+    for (const [i, payload] of results.entries()) {
+      // pg_sleep() returns void, and `void IS NULL` is false — the check
+      // exists only to force the driver to wait, not to assert a value.
+      expect(payload.data.result[0]).to.deep.equal({n: i, slept: false})
     }
   })
 
   it('exits promptly after a query, leaving no connection open', async () => {
+    const countConnections = async (): Promise<number> => {
+      const payload = await runCliJson<{data: {result: Row[]}}>(
+        ['psql', 'query', "SELECT COUNT(*)::int AS c FROM pg_stat_activity WHERE datname = 'pg_e2e'"],
+        configDir,
+      )
+      return Number(payload.data.result[0].c)
+    }
+
+    // Baseline is read via its own CLI invocation, whose connection is closed
+    // by the time it returns, so it reflects steady-state activity before the
+    // query under test runs.
+    const baseline = await countConnections()
+
     const started = Date.now()
     await runCliOk(['psql', 'query', 'SELECT 1 AS one'], configDir)
     const elapsed = Date.now() - started
 
-    // A leaked pool would keep the event loop alive until the socket timed out.
-    expect(elapsed).to.be.lessThan(20_000)
+    // A leaked pool would keep the event loop alive well past what one
+    // SELECT 1 needs; 20s was generous enough to pass even on a full hang.
+    expect(elapsed).to.be.lessThan(5000)
 
-    const payload = await runCliJson<{data: {result: Row[]}}>(
-      ['psql', 'query', "SELECT COUNT(*)::int AS c FROM pg_stat_activity WHERE datname = 'pg_e2e'"],
-      configDir,
-    )
-    expect(Number(payload.data.result[0].c)).to.be.lessThan(20)
+    // A leaked connection from the query above would still show up here, so
+    // this must not have grown relative to the baseline.
+    expect(await countConnections()).to.be.at.most(baseline)
   })
 })
