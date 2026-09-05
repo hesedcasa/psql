@@ -34,28 +34,6 @@ USAGE
 ```
 <!-- usagestop -->
 
-## Running the end-to-end tests
-
-The e2e suite runs the built CLI against a disposable PostgreSQL 17 server in
-Docker. It needs Docker with the Compose plugin; nothing else.
-
-```bash
-npm run test:e2e
-```
-
-That starts the container, builds the CLI, runs `test/e2e/`, and tears the
-container down. To iterate without paying for a cold start each time:
-
-```bash
-npm run e2e:up      # start the server (defaults to port 15432)
-npm run build       # the tests run bin/run.js, which loads dist/
-npm run e2e:mocha   # run the specs, as often as you like
-npm run e2e:down    # stop it
-```
-
-`npm test` does not run these — it skips `test/e2e/` because they need a live
-server.
-
 # Commands
 
 <!-- commands -->

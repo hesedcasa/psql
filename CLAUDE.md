@@ -42,7 +42,7 @@ npm run e2e:down
 src/
 ├── commands/psql/          # Oclif CLI commands (namespace: psql)
 │   ├── auth/               # auth add, auth test, auth update
-│   ├── query.ts            # Execute arbitrary SQL (formats: table, json, csv, toon)
+│   ├── query.ts            # Execute arbitrary SQL (formats: table, json, toon — csv exists in OutputFormat/formatters but is not wired to any flag)
 │   ├── databases.ts        # List databases
 │   ├── tables.ts           # List tables
 │   ├── describe-table.ts   # Describe table structure
