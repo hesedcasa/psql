@@ -47,6 +47,8 @@ describe('e2e: connection and profiles', () => {
 
     expect(code).to.not.equal(0)
     expect(stderr.replaceAll(/\s+/gu, ' ')).to.match(/password authentication failed for user "postgres"/iu)
+    // oclif supplies the "Error:" label, so the layer must not add one too.
+    expect(stderr).to.not.include('Error: ERROR:')
   })
 
   it('fails when the config dir holds no profiles', async () => {

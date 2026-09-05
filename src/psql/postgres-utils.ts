@@ -83,7 +83,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return {
-        error: `ERROR: ${errorMessage}`,
+        error: errorMessage,
         success: false,
       }
     }
@@ -163,7 +163,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return {
-        error: `ERROR: ${errorMessage}`,
+        error: errorMessage,
         success: false,
       }
     }
@@ -187,7 +187,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return {
-        error: `ERROR: ${errorMessage}`,
+        error: errorMessage,
         success: false,
       }
     }
@@ -210,7 +210,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return {
-        error: `ERROR: ${errorMessage}`,
+        error: errorMessage,
         success: false,
       }
     }
@@ -234,7 +234,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return {
-        error: `ERROR: ${errorMessage}`,
+        error: errorMessage,
         success: false,
       }
     }
@@ -261,7 +261,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return {
-        error: `ERROR: ${errorMessage}`,
+        error: errorMessage,
         success: false,
       }
     }
@@ -288,7 +288,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return {
-        error: `ERROR: ${errorMessage}`,
+        error: errorMessage,
         success: false,
       }
     }

@@ -179,6 +179,15 @@ describe('e2e: query execution', () => {
     expect(stderr).to.match(/syntax error/iu)
   })
 
+  it('surfaces a missing relation without doubling the error label', async () => {
+    const {code, stderr} = await runCli(['psql', 'query', 'SELECT id FROM no_such_table'], configDir)
+
+    expect(code).to.not.equal(0)
+    expect(stderr).to.include('relation "no_such_table" does not exist')
+    // oclif supplies the "Error:" label, so the layer must not add one too.
+    expect(stderr).to.not.include('Error: ERROR:')
+  })
+
   it('returns the last result of a multi-statement query', async () => {
     // The driver hands back one result per statement. Reporting the last is
     // what psql does, and it keeps `rows` from being read off an array.

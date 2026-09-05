@@ -53,7 +53,7 @@ describe('psql:describe-table', () => {
   })
 
   it('throws error when describe fails', async () => {
-    describeTableStub.resolves({error: "ERROR: Table 'nope' doesn't exist", success: false})
+    describeTableStub.resolves({error: 'relation "nope" does not exist', success: false})
 
     const cmd = new PostgresDescribeTable(['nope'], {
       root: process.cwd(),
