@@ -100,6 +100,20 @@ describe('postgres-utils: PostgreSQLUtil', () => {
       expect(result.data?.result).to.include('Rows returned: 1')
     })
 
+    it('reports the last result of a multi-statement query', async () => {
+      // node-postgres returns an array, one entry per statement.
+      mockPool.query.resolves([
+        {command: 'SELECT', fields: [{name: 'a'}], rowCount: 1, rows: [{a: 1}]},
+        {command: 'SELECT', fields: [{name: 'b'}], rowCount: 1, rows: [{b: 2}]},
+      ])
+
+      const util = new PostgreSQLUtil(mockConfig)
+      const result = await util.executeQuery('local', 'SELECT 1 AS a; SELECT 2 AS b', 'json')
+
+      expect(result.success).to.be.true
+      expect(result.data?.result).to.deep.equal([{b: 2}])
+    })
+
     it('skips confirmation when skipConfirmation is true', async () => {
       mockPool.query.resolves({
         command: 'DELETE',

@@ -178,4 +178,16 @@ describe('e2e: query execution', () => {
     expect(code).to.not.equal(0)
     expect(stderr).to.match(/syntax error/iu)
   })
+
+  it('returns the last result of a multi-statement query', async () => {
+    // The driver hands back one result per statement. Reporting the last is
+    // what psql does, and it keeps `rows` from being read off an array.
+    const payload = await runCliJson<{data: {result: Row[]}; success: boolean}>(
+      ['psql', 'query', 'SELECT 1 AS a; SELECT 2 AS b'],
+      configDir,
+    )
+
+    expect(payload.success).to.be.true
+    expect(payload.data.result).to.deep.equal([{b: 2}])
+  })
 })

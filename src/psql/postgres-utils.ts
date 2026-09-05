@@ -406,7 +406,14 @@ export class PostgreSQLUtil implements DatabaseUtil {
   private async runQuery(profileName: string, sql: string): Promise<pg.QueryResult<PgRow>> {
     const release = await this.acquireQuerySlot(profileName)
     try {
-      return await this.getPool(profileName).query<PgRow>(sql)
+      // A multi-statement query makes the driver return one result per
+      // statement rather than a single result. The typings do not model that,
+      // hence the widening cast. Report the last, which is what psql shows.
+      const result = (await this.getPool(profileName).query<PgRow>(sql)) as
+        Array<pg.QueryResult<PgRow>> | pg.QueryResult<PgRow>
+
+      // Non-null: there is always at least one statement, so at least one result.
+      return Array.isArray(result) ? result.at(-1)! : result
     } finally {
       release()
     }
