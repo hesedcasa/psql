@@ -46,40 +46,193 @@ export function requiresConfirmation(query: string, confirmationOperations: stri
   return {required: false}
 }
 
-export function getQueryType(query: string): string {
-  const normalizedQuery = query.trim().toUpperCase()
-  const firstWord = normalizedQuery.split(/\s+/, 1)[0]
+const WHERE_CLAUSE = /(?<![\w$])WHERE(?![\w$])/iu
+const LIMIT_CLAUSE = /(?<![\w$])LIMIT(?![\w$])/iu
+const SELECT_STAR = /(?<![\w$])SELECT\s+\*/iu
+const LEADING_KEYWORD = /^\s*([A-Za-z_]\w*)/u
 
-  const knownTypes = [
-    'SELECT',
-    'INSERT',
-    'UPDATE',
-    'DELETE',
-    'DROP',
-    'CREATE',
-    'ALTER',
-    'TRUNCATE',
-    'SHOW',
-    'DESCRIBE',
-    'EXPLAIN',
-  ]
-
-  if (knownTypes.includes(firstWord)) {
-    return firstWord
+// PostgreSQL block comments nest, unlike most dialects.
+function scanBlockComment(query: string, start: number): number {
+  let depth = 1
+  let j = start + 2
+  while (j < query.length && depth > 0) {
+    if (query.startsWith('/*', j)) {
+      depth += 1
+      j += 2
+    } else if (query.startsWith('*/', j)) {
+      depth -= 1
+      j += 2
+    } else {
+      j += 1
+    }
   }
 
-  return 'UNKNOWN'
+  return j
+}
+
+// 'string' escapes a quote by doubling it; E'string' also honours a backslash.
+// Extracted to its own function (rather than nested in stripNoise's loop) so
+// its break/continue apply to a single, non-nested loop.
+function scanSingleQuotedString(query: string, start: number): number {
+  const isEscapeString = /[eE]/u.test(query[start - 1] ?? '') && !/[\w$]/u.test(query[start - 2] ?? ' ')
+  let j = start + 1
+  while (j < query.length) {
+    if (isEscapeString && query[j] === '\\') {
+      j += 2
+      continue
+    }
+
+    if (query[j] === "'") {
+      if (query[j + 1] === "'") {
+        j += 2
+        continue
+      }
+
+      j += 1
+      break
+    }
+
+    j += 1
+  }
+
+  return j
+}
+
+// "quoted identifier" escapes a quote by doubling it. Extracted for the same
+// reason as scanSingleQuotedString above.
+function scanQuotedIdentifier(query: string, start: number): number {
+  let j = start + 1
+  while (j < query.length) {
+    if (query[j] === '"') {
+      if (query[j + 1] === '"') {
+        j += 2
+        continue
+      }
+
+      j += 1
+      break
+    }
+
+    j += 1
+  }
+
+  return j
+}
+
+// Comments are real trailing noise: applyDefaultLimit's insertion-point search
+// treats blanked-out whitespace as skippable, and a comment genuinely is. A
+// string literal, quoted identifier or dollar-quoted body is not — it is live
+// query content that just happens to sit at the very end of the statement
+// (e.g. `WHERE email = 'x@example.com'`) — so it is blanked with OPAQUE_FILL
+// instead, a character that is neither whitespace nor a word character. That
+// keeps it invisible to the WHERE/LIMIT/SELECT-star keyword checks (as noise
+// should be) while still halting the trailing-whitespace walk, rather than
+// being skipped over as if it were part of a trailing comment.
+const OPAQUE_FILL = '#'
+
+/**
+ * Blanks out everything that is not SQL structure — comments, string literals,
+ * quoted identifiers and dollar-quoted bodies — replacing each character with a
+ * space (comments) or `#` (opaque content) and preserving newlines. Offsets in
+ * the result line up with the original query, so a position found here can be
+ * applied to the original text.
+ *
+ * Matching against the raw query is what made these checks wrong in both
+ * directions: `SELECT id AS limit_reached` looked like it carried a LIMIT
+ * clause, and a comment wedged between two keywords hid the operation entirely.
+ *
+ * @param query The raw SQL.
+ * @returns The query with every non-structural span blanked out.
+ */
+function stripNoise(query: string): string {
+  const parts: string[] = []
+  let plainFrom = 0
+
+  const blank = (from: number, to: number, fill = ' '): void => {
+    parts.push(
+      query.slice(plainFrom, from),
+      query.slice(from, to).replaceAll(/[^\n]/gu, () => fill),
+    )
+    plainFrom = to
+  }
+
+  let i = 0
+  while (i < query.length) {
+    if (query.startsWith('--', i)) {
+      const newline = query.indexOf('\n', i)
+      const end = newline === -1 ? query.length : newline
+      blank(i, end)
+      i = end
+      continue
+    }
+
+    if (query.startsWith('/*', i)) {
+      const end = scanBlockComment(query, i)
+      blank(i, end)
+      i = end
+      continue
+    }
+
+    // $$ ... $$ and $tag$ ... $tag$
+    if (query[i] === '$') {
+      const tag = /^\$(?:[A-Za-z_]\w*)?\$/u.exec(query.slice(i))
+      if (tag) {
+        const closing = query.indexOf(tag[0], i + tag[0].length)
+        const end = closing === -1 ? query.length : closing + tag[0].length
+        blank(i, end, OPAQUE_FILL)
+        i = end
+        continue
+      }
+    }
+
+    if (query[i] === "'") {
+      const end = scanSingleQuotedString(query, i)
+      blank(i, end, OPAQUE_FILL)
+      i = end
+      continue
+    }
+
+    if (query[i] === '"') {
+      const end = scanQuotedIdentifier(query, i)
+      blank(i, end, OPAQUE_FILL)
+      i = end
+      continue
+    }
+
+    i += 1
+  }
+
+  parts.push(query.slice(plainFrom))
+  return parts.join('')
+}
+
+export function getQueryType(query: string): string {
+  const firstWord = LEADING_KEYWORD.exec(stripNoise(query))?.[1].toUpperCase() ?? ''
+
+  const knownTypes = new Set([
+    'ALTER',
+    'CREATE',
+    'DELETE',
+    'DESCRIBE',
+    'DROP',
+    'EXPLAIN',
+    'INSERT',
+    'SELECT',
+    'SHOW',
+    'TRUNCATE',
+    'UPDATE',
+  ])
+
+  return knownTypes.has(firstWord) ? firstWord : 'UNKNOWN'
 }
 
 export function analyzeQuery(query: string): QueryWarning[] {
   const warnings: QueryWarning[] = []
-  const normalizedQuery = query.trim().toUpperCase()
+  const stripped = stripNoise(query)
+  const queryType = getQueryType(query)
 
   // Check for missing WHERE clause in UPDATE/DELETE
-  if (
-    (normalizedQuery.startsWith('UPDATE') || normalizedQuery.startsWith('DELETE')) &&
-    !normalizedQuery.includes('WHERE')
-  ) {
+  if ((queryType === 'UPDATE' || queryType === 'DELETE') && !WHERE_CLAUSE.test(stripped)) {
     warnings.push({
       level: 'warning',
       message: 'Missing WHERE clause in UPDATE/DELETE query',
@@ -88,7 +241,7 @@ export function analyzeQuery(query: string): QueryWarning[] {
   }
 
   // Check for SELECT * (potential performance issue)
-  if (normalizedQuery.includes('SELECT *')) {
+  if (SELECT_STAR.test(stripped)) {
     warnings.push({
       level: 'info',
       message: 'Using SELECT * may impact performance',
@@ -97,7 +250,7 @@ export function analyzeQuery(query: string): QueryWarning[] {
   }
 
   // Check for missing LIMIT in SELECT
-  if (normalizedQuery.startsWith('SELECT') && !normalizedQuery.includes('LIMIT')) {
+  if (queryType === 'SELECT' && !LIMIT_CLAUSE.test(stripped)) {
     warnings.push({
       level: 'info',
       message: 'SELECT query without LIMIT',
@@ -109,11 +262,24 @@ export function analyzeQuery(query: string): QueryWarning[] {
 }
 
 export function applyDefaultLimit(query: string, defaultLimit: number): string {
-  const normalizedQuery = query.trim().toUpperCase()
+  const stripped = stripNoise(query)
 
-  if (normalizedQuery.startsWith('SELECT') && !normalizedQuery.includes('LIMIT')) {
-    return `${query.trim()} LIMIT ${defaultLimit}`
+  if (getQueryType(query) !== 'SELECT' || LIMIT_CLAUSE.test(stripped)) {
+    return query
   }
 
-  return query
+  // The clause has to land in front of any trailing semicolon. Behind it,
+  // PostgreSQL reads `LIMIT 100` as a second statement and rejects the query.
+  let end = stripped.length
+  const skipTrailingSpace = () => {
+    while (end > 0 && /\s/u.test(stripped[end - 1])) end -= 1
+  }
+
+  skipTrailingSpace()
+  if (end > 0 && stripped[end - 1] === ';') {
+    end -= 1
+    skipTrailingSpace()
+  }
+
+  return `${query.slice(0, end)} LIMIT ${defaultLimit}${query.slice(end)}`
 }
