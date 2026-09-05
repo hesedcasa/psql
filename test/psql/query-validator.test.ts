@@ -1,6 +1,12 @@
 import {expect} from 'chai'
 
-import {analyzeQuery, applyDefaultLimit, getQueryType} from '../../src/psql/query-validator.js'
+import {
+  analyzeQuery,
+  applyDefaultLimit,
+  checkBlacklist,
+  getQueryType,
+  requiresConfirmation,
+} from '../../src/psql/query-validator.js'
 
 describe('query-validator', () => {
   describe('getQueryType', () => {
@@ -114,6 +120,83 @@ describe('query-validator', () => {
 
     it('does not flag a SELECT whose alias merely contains "limit"', () => {
       expect(messages('SELECT id AS limit_reached FROM metrics')).to.include('SELECT query without LIMIT')
+    })
+  })
+
+  describe('checkBlacklist', () => {
+    const blacklist = ['DROP DATABASE']
+
+    it('blocks the operation', () => {
+      expect(checkBlacklist('DROP DATABASE app', blacklist).allowed).to.be.false
+    })
+
+    it('blocks it through extra whitespace', () => {
+      expect(checkBlacklist('DROP  DATABASE app', blacklist).allowed).to.be.false
+    })
+
+    it('blocks it through a newline', () => {
+      expect(checkBlacklist('DROP\n  DATABASE app', blacklist).allowed).to.be.false
+    })
+
+    it('blocks it through a comment', () => {
+      expect(checkBlacklist('DROP/* sneaky */DATABASE app', blacklist).allowed).to.be.false
+    })
+
+    it('blocks it regardless of case', () => {
+      expect(checkBlacklist('drop database app', blacklist).allowed).to.be.false
+    })
+
+    it('allows an unrelated statement', () => {
+      expect(checkBlacklist('SELECT * FROM databases', blacklist).allowed).to.be.true
+    })
+
+    it('allows a string literal that merely reads like the operation', () => {
+      expect(checkBlacklist("SELECT 'DROP DATABASE' AS note", blacklist).allowed).to.be.true
+    })
+
+    it('reports which operation was blocked', () => {
+      expect(checkBlacklist('DROP DATABASE app', blacklist).reason).to.equal(
+        'Operation "DROP DATABASE" is blacklisted and not allowed',
+      )
+    })
+  })
+
+  describe('requiresConfirmation', () => {
+    const destructive = ['DELETE', 'UPDATE', 'DROP', 'TRUNCATE', 'ALTER']
+
+    it('requires confirmation for a leading DELETE', () => {
+      expect(requiresConfirmation('DELETE FROM users', destructive).required).to.be.true
+    })
+
+    it('requires confirmation past a leading block comment and newline', () => {
+      expect(requiresConfirmation('/* migration 12 */\nDELETE FROM users', destructive).required).to.be.true
+    })
+
+    it('requires confirmation for a destructive second statement', () => {
+      // Already caught today by the legacy substring fallback — kept so the rewrite cannot regress it.
+      expect(requiresConfirmation('SELECT 1; DELETE FROM users', destructive).required).to.be.true
+    })
+
+    it('requires confirmation for a destructive second statement with no space after the semicolon', () => {
+      expect(requiresConfirmation('SELECT 1;DELETE FROM users', destructive).required).to.be.true
+    })
+
+    it('names the operation in the message', () => {
+      expect(requiresConfirmation('TRUNCATE users', destructive).message).to.equal(
+        'This query contains a destructive operation: TRUNCATE',
+      )
+    })
+
+    it('does not fire on a plain SELECT', () => {
+      expect(requiresConfirmation('SELECT * FROM users', destructive).required).to.be.false
+    })
+
+    it('does not fire on a string literal containing a destructive keyword', () => {
+      expect(requiresConfirmation("SELECT 'please delete me' AS note", destructive).required).to.be.false
+    })
+
+    it('does not fire on an identifier containing a destructive keyword', () => {
+      expect(requiresConfirmation('SELECT id FROM deleted_items', destructive).required).to.be.false
     })
   })
 })

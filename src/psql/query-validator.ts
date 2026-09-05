@@ -14,12 +14,33 @@ type QueryWarning = {
   suggestion: string
 }
 
+/**
+ * Builds a matcher for a configured operation such as `DROP DATABASE`. The
+ * keywords are matched as whole words with any run of whitespace between them,
+ * so a comment blanked out by stripNoise no longer hides the operation and an
+ * identifier like `deleted_items` no longer fakes one.
+ *
+ * @param operation The configured operation, one or more whitespace-separated keywords.
+ * @param anchored True to require the operation at the start of the statement.
+ * @returns A case-insensitive matcher for the normalized query.
+ */
+function operationPattern(operation: string, anchored: boolean): RegExp {
+  const body = operation
+    .trim()
+    .split(/\s+/u)
+    .map((word) => word.replaceAll(/[\\^$.|?*+()[\]{}]/gu, String.raw`\$&`))
+    .join(String.raw`\s+`)
+
+  return anchored
+    ? new RegExp(String.raw`^${body}(?![\w$])`, 'iu')
+    : new RegExp(String.raw`(?<![\w$])${body}(?![\w$])`, 'iu')
+}
+
 export function checkBlacklist(query: string, blacklistedOperations: string[]): BlacklistCheckResult {
-  const normalizedQuery = query.trim().toUpperCase()
+  const stripped = stripNoise(query)
 
   for (const operation of blacklistedOperations) {
-    const normalizedOp = operation.toUpperCase()
-    if (normalizedQuery.includes(normalizedOp)) {
+    if (operationPattern(operation, false).test(stripped)) {
       return {
         allowed: false,
         reason: `Operation "${operation}" is blacklisted and not allowed`,
@@ -31,14 +52,21 @@ export function checkBlacklist(query: string, blacklistedOperations: string[]): 
 }
 
 export function requiresConfirmation(query: string, confirmationOperations: string[]): ConfirmationCheckResult {
-  const normalizedQuery = query.trim().toUpperCase()
+  // Every statement is judged on its own leading keyword, so a destructive one
+  // cannot hide behind a harmless first statement, and a keyword appearing
+  // mid-statement (in a column name, say) no longer trips the gate.
+  const statements = stripNoise(query)
+    .split(';')
+    .map((statement) => statement.trim())
+    .filter(Boolean)
 
-  for (const operation of confirmationOperations) {
-    const normalizedOp = operation.toUpperCase()
-    if (normalizedQuery.startsWith(normalizedOp) || normalizedQuery.includes(` ${normalizedOp} `)) {
-      return {
-        message: `This query contains a destructive operation: ${operation}`,
-        required: true,
+  for (const statement of statements) {
+    for (const operation of confirmationOperations) {
+      if (operationPattern(operation, true).test(statement)) {
+        return {
+          message: `This query contains a destructive operation: ${operation}`,
+          required: true,
+        }
       }
     }
   }
