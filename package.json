@@ -66,6 +66,8 @@
   "repository": "hesedcasa/psql",
   "scripts": {
     "build": "shx rm -rf dist tsconfig.tsbuildinfo && tsc -b",
+    "e2e:up": "docker compose -f docker/compose.yaml up -d --build --wait",
+    "e2e:down": "docker compose -f docker/compose.yaml down -v --remove-orphans",
     "lint": "eslint",
     "postpack": "shx rm -f oclif.manifest.json",
     "posttest": "npm run lint",
