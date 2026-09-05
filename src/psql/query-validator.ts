@@ -51,6 +51,12 @@ export function checkBlacklist(query: string, blacklistedOperations: string[]): 
   return {allowed: true}
 }
 
+// A statement's leading keyword decides how requiresConfirmation reads it:
+// most operations only ever hide behind their own leading word, but EXPLAIN
+// and WITH can carry a destructive statement past that first word, and DO
+// hides its body entirely.
+const LEADING_KEYWORD = /^\s*([A-Za-z_]\w*)/u
+
 export function requiresConfirmation(query: string, confirmationOperations: string[]): ConfirmationCheckResult {
   // Every statement is judged on its own leading keyword, so a destructive one
   // cannot hide behind a harmless first statement, and a keyword appearing
@@ -61,8 +67,35 @@ export function requiresConfirmation(query: string, confirmationOperations: stri
     .filter(Boolean)
 
   for (const statement of statements) {
+    const leadingKeyword = LEADING_KEYWORD.exec(statement)?.[1]?.toUpperCase()
+
+    // A DO block runs arbitrary PL/pgSQL in a dollar-quoted body that
+    // stripNoise has already masked to OPAQUE_FILL, so nothing can inspect it
+    // for destructive operations. Treat it as unconditionally destructive
+    // rather than un-masking the body to work around this.
+    if (leadingKeyword === 'DO') {
+      return {
+        message: 'This query runs a DO block, whose body cannot be inspected for destructive operations',
+        required: true,
+      }
+    }
+
     for (const operation of confirmationOperations) {
       if (operationPattern(operation, true).test(statement)) {
+        return {
+          message: `This query contains a destructive operation: ${operation}`,
+          required: true,
+        }
+      }
+
+      // EXPLAIN ANALYZE actually executes the statement it explains, and a
+      // data-modifying CTE runs its DELETE/UPDATE as part of a leading WITH.
+      // Both hide the destructive keyword past the statement's own leading
+      // word, so these two shapes alone fall back to an unanchored scan.
+      if (
+        (leadingKeyword === 'EXPLAIN' || leadingKeyword === 'WITH') &&
+        operationPattern(operation, false).test(statement)
+      ) {
         return {
           message: `This query contains a destructive operation: ${operation}`,
           required: true,
@@ -77,7 +110,6 @@ export function requiresConfirmation(query: string, confirmationOperations: stri
 const WHERE_CLAUSE = /(?<![\w$])WHERE(?![\w$])/iu
 const LIMIT_CLAUSE = /(?<![\w$])LIMIT(?![\w$])/iu
 const SELECT_STAR = /(?<![\w$])SELECT\s+\*/iu
-const LEADING_KEYWORD = /^\s*([A-Za-z_]\w*)/u
 
 // PostgreSQL block comments nest, unlike most dialects.
 function scanBlockComment(query: string, start: number): number {

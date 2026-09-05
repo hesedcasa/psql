@@ -181,6 +181,49 @@ describe('query-validator', () => {
       expect(requiresConfirmation('SELECT 1;DELETE FROM users', destructive).required).to.be.true
     })
 
+    it('requires confirmation for EXPLAIN ANALYZE, which actually executes the statement', () => {
+      expect(requiresConfirmation('EXPLAIN ANALYZE DELETE FROM users', destructive).required).to.be.true
+    })
+
+    it('requires confirmation for EXPLAIN with options wrapping a destructive statement', () => {
+      expect(requiresConfirmation('EXPLAIN (ANALYZE, BUFFERS) UPDATE u SET a = 1', destructive).required).to.be.true
+    })
+
+    it('requires confirmation for a destructive statement inside a CTE', () => {
+      expect(
+        requiresConfirmation('WITH d AS ( DELETE FROM users RETURNING * ) SELECT 1', destructive).required,
+      ).to.be.true
+    })
+
+    it('requires confirmation for a destructive statement inside a CTE with no inner spaces', () => {
+      expect(
+        requiresConfirmation('WITH d AS (DELETE FROM users RETURNING *) SELECT 1', destructive).required,
+      ).to.be.true
+    })
+
+    it('requires confirmation for a DO block, whose body cannot be inspected', () => {
+      expect(requiresConfirmation('DO $$ BEGIN DELETE FROM users; END $$', destructive).required).to.be.true
+    })
+
+    it('does not fire on a harmless EXPLAIN', () => {
+      expect(requiresConfirmation('EXPLAIN SELECT * FROM users', destructive).required).to.be.false
+    })
+
+    it('does not fire on a harmless CTE', () => {
+      expect(requiresConfirmation('WITH u AS (SELECT 1) SELECT * FROM u', destructive).required).to.be.false
+    })
+
+    it('does not fire on INSERT ... ON CONFLICT DO UPDATE, which is not a configured operation', () => {
+      expect(
+        requiresConfirmation('INSERT INTO t (a) VALUES (1) ON CONFLICT (a) DO UPDATE SET a = 2', destructive)
+          .required,
+      ).to.be.false
+    })
+
+    it('does not over-match on an unanchored scan of an unrelated SELECT', () => {
+      expect(requiresConfirmation('SELECT * FROM deleted_items', destructive).required).to.be.false
+    })
+
     it('names the operation in the message', () => {
       expect(requiresConfirmation('TRUNCATE users', destructive).message).to.equal(
         'This query contains a destructive operation: TRUNCATE',
