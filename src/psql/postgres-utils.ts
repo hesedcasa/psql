@@ -14,7 +14,7 @@ import type {
 
 import {getPgConnectionOptions, type PgConfig} from './config-loader.js'
 import {FORMATTERS, type PgField, type PgRow} from './formatters.js'
-import {analyzeQuery, applyDefaultLimit, checkBlacklist, getQueryType, requiresConfirmation} from './query-validator.js'
+import {analyzeQuery, applyDefaultLimit, checkBlacklist, requiresConfirmation} from './query-validator.js'
 
 const DEFAULT_MAX_CONCURRENT_QUERIES = 5
 const DEFAULT_QUEUE_TIMEOUT_MS = 60_000
@@ -130,13 +130,12 @@ export class PostgreSQLUtil implements DatabaseUtil {
       )
     }
 
-    let finalQuery = query
-    const queryType = getQueryType(query)
-    if (queryType === 'SELECT') {
-      finalQuery = applyDefaultLimit(query, this.config.safety.defaultLimit)
-      if (finalQuery !== query) {
-        notices.push(`Applied default LIMIT ${this.config.safety.defaultLimit}`)
-      }
+    // applyDefaultLimit decides per statement which SELECTs need bounding, so
+    // it is called unconditionally rather than behind a whole-query type check
+    // that a batch like `UPDATE ...; SELECT * FROM metrics` would fail.
+    const finalQuery = applyDefaultLimit(query, this.config.safety.defaultLimit)
+    if (finalQuery !== query) {
+      notices.push(`Applied default LIMIT ${this.config.safety.defaultLimit}`)
     }
 
     try {

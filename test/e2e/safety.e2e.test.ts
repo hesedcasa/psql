@@ -145,6 +145,49 @@ describe('e2e: safety rules and writes', () => {
     expect(check.data.result[0].c).to.equal(1)
   })
 
+  it('requires confirmation for a routine whose body hides a destructive operation', async () => {
+    // The DROP sits in a dollar-quoted body that the validator cannot inspect,
+    // and the statement that fires it is a plain SELECT. If the gate ever stops
+    // catching the definition itself, PostgreSQL really does drop this table.
+    const table = await createScratch('routine')
+    const routine = `wipe_${process.pid}`
+
+    const {code, stdout} = await runCli(
+      [
+        'psql',
+        'query',
+        `CREATE FUNCTION ${routine}() RETURNS void AS $$ BEGIN DROP TABLE ${table}; END $$ LANGUAGE plpgsql; ` +
+          `SELECT ${routine}()`,
+      ],
+      configDir,
+    )
+
+    expect(code).to.equal(0)
+    expect(stdout).to.include('This query defines a routine, whose body cannot be inspected')
+
+    const afterwards = await runCliJson<{data: {tables: string[]}}>(['psql', 'tables'], configDir)
+    expect(afterwards.data.tables).to.include(table)
+  })
+
+  it('runs a batch whose trailing statement is a write', async () => {
+    // The default LIMIT used to be appended to the end of the whole batch,
+    // landing behind the UPDATE, where PostgreSQL rejects it as a syntax error.
+    const table = await createScratch('batch')
+    await runCliOk(['psql', 'query', `INSERT INTO ${table} (note) VALUES ('todo')`], configDir)
+
+    const {code} = await runCli(
+      ['psql', 'query', `SELECT 1; UPDATE ${table} SET note = 'done' WHERE note = 'todo'`, '--skip-confirmation'],
+      configDir,
+    )
+    expect(code).to.equal(0)
+
+    const check = await runCliJson<{data: {result: Row[]}}>(
+      ['psql', 'query', `SELECT note FROM ${table} ORDER BY id`],
+      configDir,
+    )
+    expect(check.data.result).to.deep.equal([{note: 'done'}])
+  })
+
   it('does not demand confirmation for a SELECT whose data merely says "delete"', async () => {
     const payload = await runCliJson<{data: {result: Row[]}; success: boolean}>(
       ['psql', 'query', "SELECT 'please delete me' AS note"],

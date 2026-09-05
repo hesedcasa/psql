@@ -91,6 +91,40 @@ describe('query-validator', () => {
     it('leaves a non-SELECT alone', () => {
       expect(applyDefaultLimit('UPDATE users SET name = 1', 100)).to.equal('UPDATE users SET name = 1')
     })
+
+    it('bounds a later SELECT even though an earlier statement carries its own LIMIT', () => {
+      // Reading the batch as one string saw the first LIMIT and left the
+      // second query - the unbounded one - to return every row.
+      expect(applyDefaultLimit('SELECT 1 LIMIT 1; SELECT * FROM metrics', 100)).to.equal(
+        'SELECT 1 LIMIT 1; SELECT * FROM metrics LIMIT 100',
+      )
+    })
+
+    it('does not append a LIMIT after a trailing non-SELECT statement', () => {
+      // The clause used to land at the very end of the batch, behind the
+      // UPDATE, where PostgreSQL rejects the whole query with a syntax error.
+      expect(applyDefaultLimit('SELECT 1; UPDATE metrics SET v = 1 WHERE id = 2', 100)).to.equal(
+        'SELECT 1 LIMIT 100; UPDATE metrics SET v = 1 WHERE id = 2',
+      )
+    })
+
+    it('bounds a SELECT that follows a leading non-SELECT statement', () => {
+      expect(applyDefaultLimit('UPDATE metrics SET v = 1 WHERE id = 2; SELECT * FROM metrics', 100)).to.equal(
+        'UPDATE metrics SET v = 1 WHERE id = 2; SELECT * FROM metrics LIMIT 100',
+      )
+    })
+
+    it('bounds every unbounded SELECT in a batch', () => {
+      expect(applyDefaultLimit('SELECT a FROM t; SELECT b FROM u;', 100)).to.equal(
+        'SELECT a FROM t LIMIT 100; SELECT b FROM u LIMIT 100;',
+      )
+    })
+
+    it('is not fooled by a semicolon inside a string literal', () => {
+      expect(applyDefaultLimit("SELECT ';' AS sep FROM metrics", 100)).to.equal(
+        "SELECT ';' AS sep FROM metrics LIMIT 100",
+      )
+    })
   })
 
   describe('analyzeQuery', () => {
@@ -268,6 +302,39 @@ describe('query-validator', () => {
 
     it('does not fire on an identifier containing a destructive keyword', () => {
       expect(requiresConfirmation('SELECT id FROM deleted_items', destructive).required).to.be.false
+    })
+
+    it('requires confirmation for a routine definition, whose body cannot be inspected', () => {
+      // The DROP lives in a dollar-quoted body that stripNoise masks, and the
+      // call that fires it is a plain SELECT - so the definition is the only
+      // point at which the gate can see anything at all.
+      const query =
+        'CREATE FUNCTION wipe() RETURNS void AS $$ BEGIN DROP TABLE users; END $$ LANGUAGE plpgsql; SELECT wipe()'
+
+      expect(requiresConfirmation(query, destructive)).to.deep.equal({
+        message: 'This query defines a routine, whose body cannot be inspected for destructive operations',
+        required: true,
+      })
+    })
+
+    it('requires confirmation for CREATE OR REPLACE FUNCTION', () => {
+      expect(
+        requiresConfirmation("CREATE OR REPLACE FUNCTION f() RETURNS int AS 'SELECT 1' LANGUAGE sql", destructive)
+          .required,
+      ).to.be.true
+    })
+
+    it('requires confirmation for a procedure definition', () => {
+      expect(requiresConfirmation('CREATE PROCEDURE p() LANGUAGE plpgsql AS $$ BEGIN END $$', destructive).required).to
+        .be.true
+    })
+
+    it('does not fire on a CREATE TABLE, which has no executable body', () => {
+      expect(requiresConfirmation('CREATE TABLE t (id integer)', destructive).required).to.be.false
+    })
+
+    it('does not fire on a SELECT from a table whose name starts with "function"', () => {
+      expect(requiresConfirmation('SELECT * FROM function_registry', destructive).required).to.be.false
     })
   })
 })

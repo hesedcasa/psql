@@ -78,7 +78,7 @@
     "e2e:mocha": "mocha --forbid-only \"test/e2e/**/*.e2e.test.ts\"",
     "test:coverage:report": "c8 --reporter=html --reporter=text npm test",
     "version": "oclif readme && git add README.md",
-    "find-deadcode": "ts-prune --ignore '(run|default)'",
+    "find-deadcode": "ts-prune --ignore '(run|default|getQueryType)'",
     "format": "eslint --cache --fix --quiet . && prettier --write --cache .",
     "pre-commit": "npm run format && npm run find-deadcode"
   },

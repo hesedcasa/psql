@@ -58,17 +58,55 @@ export function checkBlacklist(query: string, blacklistedOperations: string[]): 
 const LEADING_KEYWORD = /^\s*([A-Za-z_]\w*)/u
 const UNANCHORED_FALLBACK_KEYWORDS = new Set(['EXPLAIN', 'MERGE', 'PREPARE', 'WITH'])
 
+// CREATE/ALTER FUNCTION and PROCEDURE carry an executable body that stripNoise
+// has already masked — a dollar-quoted block, or a plain string literal when
+// the routine is written the older way. Nothing can inspect it, and unlike a DO
+// block the body does not run until something calls the routine, which may be
+// an innocuous-looking SELECT later in the same batch. The definition is
+// therefore the only place the gate can catch it.
+const ROUTINE_DEFINITION = /^(?:CREATE|ALTER)(?:\s+OR\s+REPLACE)?\s+(?:FUNCTION|PROCEDURE)(?![\w$])/iu
+
+/**
+ * Locates each statement in a query that stripNoise has already blanked out.
+ * Semicolons inside strings, quoted identifiers and dollar-quoted bodies are
+ * already masked at that point, so splitting on `;` here really does find
+ * statement boundaries. The returned offsets exclude surrounding whitespace and line up
+ * with the original query, so a position found here can be applied to it.
+ *
+ * @param stripped The output of stripNoise.
+ * @returns One `{start, end}` pair per non-empty statement, in source order.
+ */
+function splitStatements(stripped: string): Array<{end: number; start: number}> {
+  const statements: Array<{end: number; start: number}> = []
+  let from = 0
+
+  for (let i = 0; i <= stripped.length; i += 1) {
+    if (i < stripped.length && stripped[i] !== ';') continue
+
+    let start = from
+    let end = i
+    while (start < end && /\s/u.test(stripped[start])) start += 1
+    while (end > start && /\s/u.test(stripped[end - 1])) end -= 1
+    if (end > start) statements.push({end, start})
+    from = i + 1
+  }
+
+  return statements
+}
+
+function leadingKeywordOf(statement: string): string | undefined {
+  return LEADING_KEYWORD.exec(statement)?.[1]?.toUpperCase()
+}
+
 export function requiresConfirmation(query: string, confirmationOperations: string[]): ConfirmationCheckResult {
   // Every statement is judged on its own leading keyword, so a destructive one
   // cannot hide behind a harmless first statement, and a keyword appearing
   // mid-statement (in a column name, say) no longer trips the gate.
-  const statements = stripNoise(query)
-    .split(';')
-    .map((statement) => statement.trim())
-    .filter(Boolean)
+  const stripped = stripNoise(query)
 
-  for (const statement of statements) {
-    const leadingKeyword = LEADING_KEYWORD.exec(statement)?.[1]?.toUpperCase()
+  for (const {end, start} of splitStatements(stripped)) {
+    const statement = stripped.slice(start, end)
+    const leadingKeyword = leadingKeywordOf(statement)
 
     // A DO block runs arbitrary PL/pgSQL in a dollar-quoted body that
     // stripNoise has already masked to OPAQUE_FILL, so nothing can inspect it
@@ -77,6 +115,13 @@ export function requiresConfirmation(query: string, confirmationOperations: stri
     if (leadingKeyword === 'DO') {
       return {
         message: 'This query runs a DO block, whose body cannot be inspected for destructive operations',
+        required: true,
+      }
+    }
+
+    if (ROUTINE_DEFINITION.test(statement)) {
+      return {
+        message: 'This query defines a routine, whose body cannot be inspected for destructive operations',
         required: true,
       }
     }
@@ -331,22 +376,30 @@ export function analyzeQuery(query: string): QueryWarning[] {
 export function applyDefaultLimit(query: string, defaultLimit: number): string {
   const stripped = stripNoise(query)
 
-  if (getQueryType(query) !== 'SELECT' || LIMIT_CLAUSE.test(stripped)) {
-    return query
+  // Each statement is judged on its own. Reading the whole batch at once got
+  // this wrong in both directions: `SELECT 1 LIMIT 1; SELECT * FROM metrics`
+  // left the second query unbounded because the first one carried a LIMIT, and
+  // `SELECT 1; UPDATE metrics ...` appended `LIMIT 100` after the UPDATE, where
+  // PostgreSQL rejects it outright.
+  //
+  // splitStatements already excludes the trailing semicolon and any whitespace
+  // or comment after it, so each `end` is exactly where the clause belongs:
+  // behind the semicolon PostgreSQL reads `LIMIT 100` as a statement of its own.
+  const insertAt = splitStatements(stripped)
+    .filter(({end, start}) => {
+      const statement = stripped.slice(start, end)
+      return leadingKeywordOf(statement) === 'SELECT' && !LIMIT_CLAUSE.test(statement)
+    })
+    .map(({end}) => end)
+
+  if (insertAt.length === 0) return query
+
+  let result = ''
+  let from = 0
+  for (const at of insertAt) {
+    result += `${query.slice(from, at)} LIMIT ${defaultLimit}`
+    from = at
   }
 
-  // The clause has to land in front of any trailing semicolon. Behind it,
-  // PostgreSQL reads `LIMIT 100` as a second statement and rejects the query.
-  let end = stripped.length
-  const skipTrailingSpace = () => {
-    while (end > 0 && /\s/u.test(stripped[end - 1])) end -= 1
-  }
-
-  skipTrailingSpace()
-  if (end > 0 && stripped[end - 1] === ';') {
-    end -= 1
-    skipTrailingSpace()
-  }
-
-  return `${query.slice(0, end)} LIMIT ${defaultLimit}${query.slice(end)}`
+  return result + query.slice(from)
 }

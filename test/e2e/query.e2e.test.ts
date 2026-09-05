@@ -125,6 +125,18 @@ describe('e2e: query execution', () => {
     expect(payload.data.result).to.have.lengthOf(120)
   })
 
+  it('applies the default LIMIT per statement, not once per batch', async () => {
+    // Judging the batch as one string saw the first statement's LIMIT and left
+    // the second one - the unbounded one - free to return all 150 rows. The
+    // driver reports the last statement's result, so that is what lands here.
+    const payload = await runCliJson<{data: {result: Row[]}}>(
+      ['psql', 'query', 'SELECT 1 AS n LIMIT 1; SELECT id FROM metrics'],
+      configDir,
+    )
+
+    expect(payload.data.result).to.have.lengthOf(100)
+  })
+
   it('reports analysis warnings and the applied limit', async () => {
     const {stderr, stdout} = await runCliOk(['psql', 'query', 'SELECT * FROM metrics'], configDir)
 

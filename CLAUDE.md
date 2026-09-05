@@ -77,9 +77,9 @@ Commands are thin Oclif wrappers that:
 **3. Safety System (`query-validator.ts` + `PostgreSQLUtil`):**
 
 - `checkBlacklist`: blocks operations in `blacklistedOperations` (e.g. `DROP DATABASE`)
-- `requiresConfirmation`: returns `requiresConfirmation: true` for destructive ops (DELETE, UPDATE, DROP, TRUNCATE, ALTER) unless `skipConfirmation=true`
+- `requiresConfirmation`: returns `requiresConfirmation: true` for destructive ops (DELETE, UPDATE, DROP, TRUNCATE, ALTER) unless `skipConfirmation=true`. Each statement in a batch is judged on its own leading keyword; `DO` blocks and routine definitions (`CREATE`/`ALTER FUNCTION`/`PROCEDURE`) always require confirmation, because their bodies are opaque to the validator
 - `analyzeQuery`: produces warnings for missing WHERE, SELECT \*, missing LIMIT
-- `applyDefaultLimit`: auto-appends `LIMIT 100` to SELECT queries without one
+- `applyDefaultLimit`: auto-appends `LIMIT 100` to each unbounded SELECT statement in the query, leaving other statements untouched
 
 **4. Result Types (`database.ts`):**
 
