@@ -65,6 +65,23 @@ describe('query-validator', () => {
       )
     })
 
+    it('does not treat "$$" inside an identifier as a dollar-quote opener', () => {
+      // PostgreSQL allows `$` as a non-initial identifier character, so
+      // `a$$b` is one identifier, not the start of a dollar-quoted body.
+      // Misreading it as an opener would mask everything after it -
+      // including a real trailing LIMIT clause - as unclosed dollar-quote
+      // content, and applyDefaultLimit would then append a second LIMIT.
+      expect(applyDefaultLimit('SELECT id AS a$$b FROM metrics LIMIT 5', 100)).to.equal(
+        'SELECT id AS a$$b FROM metrics LIMIT 5',
+      )
+    })
+
+    it('appends a LIMIT after an identifier containing "$$" when none is present', () => {
+      expect(applyDefaultLimit('SELECT id AS a$$b FROM metrics', 100)).to.equal(
+        'SELECT id AS a$$b FROM metrics LIMIT 100',
+      )
+    })
+
     it('leaves a non-SELECT alone', () => {
       expect(applyDefaultLimit('UPDATE users SET name = 1', 100)).to.equal('UPDATE users SET name = 1')
     })

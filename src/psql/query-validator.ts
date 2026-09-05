@@ -173,8 +173,11 @@ function stripNoise(query: string): string {
       continue
     }
 
-    // $$ ... $$ and $tag$ ... $tag$
-    if (query[i] === '$') {
+    // $$ ... $$ and $tag$ ... $tag$. PostgreSQL allows `$` as a non-initial
+    // identifier character (`a$$b` is one identifier), so this only opens a
+    // dollar-quote when it isn't preceded by an identifier character —
+    // symmetric with the E-string guard above.
+    if (query[i] === '$' && !/[\w$]/u.test(query[i - 1] ?? ' ')) {
       const tag = /^\$(?:[A-Za-z_]\w*)?\$/u.exec(query.slice(i))
       if (tag) {
         const closing = query.indexOf(tag[0], i + tag[0].length)
