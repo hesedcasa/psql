@@ -1,2 +1,9 @@
 README.md
 CHANGELOG.md
+
+# Planning artifacts. Prettier formats embedded code blocks with its own
+# defaults, which invert this project style (double quotes, semicolons).
+docs/superpowers/
+
+# Subagent-driven-development scratch workspace.
+.superpowers/
