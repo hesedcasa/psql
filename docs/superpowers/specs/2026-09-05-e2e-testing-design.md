@@ -173,7 +173,8 @@ Four files, split so a failure names its own area.
 **`connection.e2e.test.ts`** — `auth test` succeeds on the default profile and
 reports PostgreSQL 17 and database `pg_e2e`; `auth list` shows all four
 profiles with `default` flagged; `auth test -p broken` exits non-zero with
-`✗ failed`; a query on the `broken` profile surfaces the driver's
+`Failed to connect to PostgreSQL.` (the spinner glyph is not asserted — it is
+not reliably emitted outside a TTY); a query on the `broken` profile surfaces the driver's
 authentication error and does *not* contain `Error: ERROR:`; a nonexistent
 config dir fails with a message about profiles; `databases` lists all three
 fixture databases; `tables` and `tables -p alt` return different tables;
@@ -209,7 +210,9 @@ Each test that mutates data owns a uniquely named scratch table
 against a long-lived container.
 
 **`schema.e2e.test.ts`** — `tables` lists the seeded tables; `tables -p empty`
-succeeds with an empty list, and its human output says so; `describe-table`
+succeeds with an empty list, and its human output prints the heading with no
+bullets under it (this repo has no "no tables found" message, and adding one is
+out of scope); `describe-table`
 reports column names, data types, `character_maximum_length` and nullability,
 including `USER-DEFINED` for the enum; `indexes` reports the primary key, the
 unique index and the plain index, distinguishable via `indexdef`; `explain`
