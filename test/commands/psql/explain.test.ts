@@ -60,7 +60,7 @@ describe('psql:explain', () => {
   })
 
   it('throws error when explain fails', async () => {
-    explainQueryStub.resolves({error: 'ERROR: You have an error in your SQL syntax', success: false})
+    explainQueryStub.resolves({error: 'syntax error at or near "SELCT"', success: false})
 
     const cmd = new PostgresExplain(['INVALID SQL'], {
       root: process.cwd(),

@@ -71,10 +71,16 @@ const config = [
       '@typescript-eslint/no-dynamic-delete': 'off',
       '@typescript-eslint/no-empty-function': 'off',
       '@typescript-eslint/no-extraneous-class': 'off',
+      // The config demands the 'v' flag, which needs an ES2024 target; the
+      // build targets ES2022, so 'u' is the strongest flag available.
+      'require-unicode-regexp': 'off',
       'unicorn/consistent-boolean-name': 'off',
       'unicorn/no-computed-property-existence-check': 'off',
       'unicorn/no-non-function-verb-prefix': 'off',
       'unicorn/prefer-https': 'off',
+      // Iterator helpers (`Iterator#toArray()`) are ES2025; the build targets
+      // ES2022, so spreading an iterator is still the portable form.
+      'unicorn/prefer-iterator-to-array': 'off',
     },
   },
   prettier,

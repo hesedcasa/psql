@@ -27,6 +27,13 @@ npm run format
 
 # Find dead code
 npm run find-deadcode
+
+# End-to-end tests against PostgreSQL in Docker (start, build, test, tear down)
+npm run test:e2e
+
+# Iterate on e2e tests without restarting the container
+npm run e2e:up && npm run build && npm run e2e:mocha
+npm run e2e:down
 ```
 
 ## Architecture
@@ -35,7 +42,7 @@ npm run find-deadcode
 src/
 ├── commands/psql/          # Oclif CLI commands (namespace: psql)
 │   ├── auth/               # auth add, auth test, auth update
-│   ├── query.ts            # Execute arbitrary SQL (formats: table, json, csv, toon)
+│   ├── query.ts            # Execute arbitrary SQL (formats: table, json, toon — csv exists in OutputFormat/formatters but is not wired to any flag)
 │   ├── databases.ts        # List databases
 │   ├── tables.ts           # List tables
 │   ├── describe-table.ts   # Describe table structure
@@ -70,9 +77,9 @@ Commands are thin Oclif wrappers that:
 **3. Safety System (`query-validator.ts` + `PostgreSQLUtil`):**
 
 - `checkBlacklist`: blocks operations in `blacklistedOperations` (e.g. `DROP DATABASE`)
-- `requiresConfirmation`: returns `requiresConfirmation: true` for destructive ops (DELETE, UPDATE, DROP, TRUNCATE, ALTER) unless `skipConfirmation=true`
+- `requiresConfirmation`: returns `requiresConfirmation: true` for destructive ops (DELETE, UPDATE, DROP, TRUNCATE, ALTER) unless `skipConfirmation=true`. Each statement in a batch is judged on its own leading keyword; `DO` blocks and routine definitions (`CREATE`/`ALTER FUNCTION`/`PROCEDURE`) always require confirmation, because their bodies are opaque to the validator
 - `analyzeQuery`: produces warnings for missing WHERE, SELECT \*, missing LIMIT
-- `applyDefaultLimit`: auto-appends `LIMIT 100` to SELECT queries without one
+- `applyDefaultLimit`: auto-appends `LIMIT 100` to each unbounded SELECT statement in the query, leaving other statements untouched
 
 **4. Result Types (`database.ts`):**
 
@@ -176,6 +183,33 @@ const imported = await esmock('../../src/psql/postgres-utils.js', {
 })
 // query mock returns pg result format: {rows, fields, rowCount, command}
 ```
+
+**End-to-end tests** (`test/e2e/*.e2e.test.ts`) — no mocks. `docker/Dockerfile` provisions a
+PostgreSQL 17 server seeded from `docker/initdb/`, and `test/e2e/helpers.ts` runs the built
+`bin/run.js` as a subprocess with `PG_CONFIG_DIR` pointed at a temp config dir holding
+`default`, `alt`, `empty` and `broken` profiles:
+
+```typescript
+const configDir = await createConfigDir()
+const payload = await runCliJson<{data: {tables: string[]}}>(['psql', 'tables'], configDir)
+```
+
+`runCli` returns `{code, stdout, stderr}` without throwing (for failure-path assertions),
+`runCliOk` asserts a zero exit, and `runCliJson` appends `--json` and parses stdout. These
+files live in `test/e2e/`, which `npm test` skips via `--ignore` — they need a live
+server. Run them with `npm run test:e2e`; see `scripts/e2e.sh`.
+
+Each `npm run test:e2e` gets its own Compose project (`pg-e2e-<pid>`) and lets Docker
+publish PostgreSQL on a free host port, so concurrent runs never share a database or tear
+down each other's container. `PG_E2E_PROJECT` and `PG_E2E_PORT` override both; `e2e:up` /
+`e2e:down` use the defaults (`pg-e2e` on 15432), which is why they pair with `e2e:mocha`.
+Give concurrent runs separate working trees, though — the build writes a single `dist/`.
+
+The fixtures are fixed in `docker/initdb/01-schema.sql`: `metrics` holds 150 rows so the
+default `LIMIT 100` truncates observably, `wide_orders` holds 2000 so the planner really
+picks an index for the `explain` assertion, and `quirky` carries NULLs, embedded commas and
+a `bytea` column for the formatter tests. Tests that mutate data create their own
+`scratch_<name>_<pid>` table rather than touching the fixtures.
 
 **Auth command tests** — mock `@inquirer/prompts` input function in `beforeEach` to avoid blocking on stdin:
 

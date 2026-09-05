@@ -55,7 +55,7 @@ describe('psql:list-tables', () => {
   })
 
   it('throws error when listing fails', async () => {
-    listTablesStub.resolves({error: 'ERROR: no database selected', success: false})
+    listTablesStub.resolves({error: 'no database selected', success: false})
 
     const cmd = new PostgresListTables([], {
       root: process.cwd(),

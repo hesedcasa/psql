@@ -14,7 +14,7 @@ import type {
 
 import {getPgConnectionOptions, type PgConfig} from './config-loader.js'
 import {FORMATTERS, type PgField, type PgRow} from './formatters.js'
-import {analyzeQuery, applyDefaultLimit, checkBlacklist, getQueryType, requiresConfirmation} from './query-validator.js'
+import {analyzeQuery, applyDefaultLimit, checkBlacklist, requiresConfirmation} from './query-validator.js'
 
 const DEFAULT_MAX_CONCURRENT_QUERIES = 5
 const DEFAULT_QUEUE_TIMEOUT_MS = 60_000
@@ -70,7 +70,8 @@ export class PostgreSQLUtil implements DatabaseUtil {
     try {
       const result = await this.runQuery(
         profileName,
-        `SELECT column_name, data_type, character_maximum_length, is_nullable, column_default FROM information_schema.columns WHERE table_name = '${table}' AND table_schema = 'public' ORDER BY ordinal_position`,
+        "SELECT column_name, data_type, character_maximum_length, is_nullable, column_default FROM information_schema.columns WHERE table_name = $1 AND table_schema = 'public' ORDER BY ordinal_position",
+        [table],
       )
 
       return {
@@ -83,7 +84,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return {
-        error: `ERROR: ${errorMessage}`,
+        error: errorMessage,
         success: false,
       }
     }
@@ -129,13 +130,12 @@ export class PostgreSQLUtil implements DatabaseUtil {
       )
     }
 
-    let finalQuery = query
-    const queryType = getQueryType(query)
-    if (queryType === 'SELECT') {
-      finalQuery = applyDefaultLimit(query, this.config.safety.defaultLimit)
-      if (finalQuery !== query) {
-        notices.push(`Applied default LIMIT ${this.config.safety.defaultLimit}`)
-      }
+    // applyDefaultLimit decides per statement which SELECTs need bounding, so
+    // it is called unconditionally rather than behind a whole-query type check
+    // that a batch like `UPDATE ...; SELECT * FROM metrics` would fail.
+    const finalQuery = applyDefaultLimit(query, this.config.safety.defaultLimit)
+    if (finalQuery !== query) {
+      notices.push(`Applied default LIMIT ${this.config.safety.defaultLimit}`)
     }
 
     try {
@@ -163,7 +163,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return {
-        error: `ERROR: ${errorMessage}`,
+        error: errorMessage,
         success: false,
       }
     }
@@ -187,7 +187,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return {
-        error: `ERROR: ${errorMessage}`,
+        error: errorMessage,
         success: false,
       }
     }
@@ -210,7 +210,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return {
-        error: `ERROR: ${errorMessage}`,
+        error: errorMessage,
         success: false,
       }
     }
@@ -234,7 +234,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return {
-        error: `ERROR: ${errorMessage}`,
+        error: errorMessage,
         success: false,
       }
     }
@@ -248,7 +248,8 @@ export class PostgreSQLUtil implements DatabaseUtil {
     try {
       const result = await this.runQuery(
         profileName,
-        `SELECT indexname, indexdef FROM pg_indexes WHERE tablename = '${table}' AND schemaname = 'public'`,
+        "SELECT indexname, indexdef FROM pg_indexes WHERE tablename = $1 AND schemaname = 'public'",
+        [table],
       )
 
       return {
@@ -261,7 +262,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return {
-        error: `ERROR: ${errorMessage}`,
+        error: errorMessage,
         success: false,
       }
     }
@@ -288,7 +289,7 @@ export class PostgreSQLUtil implements DatabaseUtil {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return {
-        error: `ERROR: ${errorMessage}`,
+        error: errorMessage,
         success: false,
       }
     }
@@ -403,10 +404,17 @@ export class PostgreSQLUtil implements DatabaseUtil {
 
   // All queries go through here so concurrent load on the same profile is
   // capped at maxConcurrentQueries; excess queries wait for a free slot.
-  private async runQuery(profileName: string, sql: string): Promise<pg.QueryResult<PgRow>> {
+  private async runQuery(profileName: string, sql: string, values?: unknown[]): Promise<pg.QueryResult<PgRow>> {
     const release = await this.acquireQuerySlot(profileName)
     try {
-      return await this.getPool(profileName).query<PgRow>(sql)
+      // A multi-statement query makes the driver return one result per
+      // statement rather than a single result. The typings do not model that,
+      // hence the widening cast. Report the last, which is what psql shows.
+      const result = (await this.getPool(profileName).query<PgRow>(sql, values)) as
+        Array<pg.QueryResult<PgRow>> | pg.QueryResult<PgRow>
+
+      // Non-null: there is always at least one statement, so at least one result.
+      return Array.isArray(result) ? result.at(-1)! : result
     } finally {
       release()
     }

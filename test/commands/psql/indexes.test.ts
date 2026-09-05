@@ -56,7 +56,7 @@ describe('psql:show-indexes', () => {
   })
 
   it('throws error when show indexes fails', async () => {
-    showIndexesStub.resolves({error: "ERROR: Table 'nope' doesn't exist", success: false})
+    showIndexesStub.resolves({error: 'relation "nope" does not exist', success: false})
 
     const cmd = new PostgresShowIndexes(['nope'], {
       root: process.cwd(),

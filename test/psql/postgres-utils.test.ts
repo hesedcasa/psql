@@ -68,6 +68,46 @@ describe('postgres-utils: PostgreSQLUtil', () => {
     })
   })
 
+  describe('describeTable', () => {
+    it('parameterizes the table name rather than interpolating it', async () => {
+      mockPool.query.resolves({
+        command: 'SELECT',
+        fields: [{name: 'column_name'}],
+        rowCount: 0,
+        rows: [],
+      })
+
+      const util = new PostgreSQLUtil(mockConfig)
+      await util.describeTable('local', "x'; DROP TABLE users; --")
+
+      expect(mockPool.query.callCount).to.equal(1)
+      const [sql, values] = mockPool.query.firstCall.args
+      expect(sql).to.not.include("x'; DROP TABLE users; --")
+      expect(sql).to.include('$1')
+      expect(values).to.deep.equal(["x'; DROP TABLE users; --"])
+    })
+  })
+
+  describe('showIndexes', () => {
+    it('parameterizes the table name rather than interpolating it', async () => {
+      mockPool.query.resolves({
+        command: 'SELECT',
+        fields: [{name: 'indexname'}],
+        rowCount: 0,
+        rows: [],
+      })
+
+      const util = new PostgreSQLUtil(mockConfig)
+      await util.showIndexes('local', "x'; DROP TABLE users; --")
+
+      expect(mockPool.query.callCount).to.equal(1)
+      const [sql, values] = mockPool.query.firstCall.args
+      expect(sql).to.not.include("x'; DROP TABLE users; --")
+      expect(sql).to.include('$1')
+      expect(values).to.deep.equal(["x'; DROP TABLE users; --"])
+    })
+  })
+
   describe('executeQuery', () => {
     it('blocks blacklisted operations', async () => {
       const util = new PostgreSQLUtil(mockConfig)
@@ -98,6 +138,20 @@ describe('postgres-utils: PostgreSQLUtil', () => {
 
       expect(result.success).to.be.true
       expect(result.data?.result).to.include('Rows returned: 1')
+    })
+
+    it('reports the last result of a multi-statement query', async () => {
+      // node-postgres returns an array, one entry per statement.
+      mockPool.query.resolves([
+        {command: 'SELECT', fields: [{name: 'a'}], rowCount: 1, rows: [{a: 1}]},
+        {command: 'SELECT', fields: [{name: 'b'}], rowCount: 1, rows: [{b: 2}]},
+      ])
+
+      const util = new PostgreSQLUtil(mockConfig)
+      const result = await util.executeQuery('local', 'SELECT 1 AS a; SELECT 2 AS b', 'json')
+
+      expect(result.success).to.be.true
+      expect(result.data?.result).to.deep.equal([{b: 2}])
     })
 
     it('skips confirmation when skipConfirmation is true', async () => {

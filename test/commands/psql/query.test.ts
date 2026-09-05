@@ -95,7 +95,7 @@ describe('psql:query', () => {
   })
 
   it('throws error when query fails', async () => {
-    executeQueryStub.resolves({error: 'ERROR: table not found', success: false})
+    executeQueryStub.resolves({error: 'table not found', success: false})
 
     const cmd = new PostgresQuery(['SELECT * FROM nonexistent'], {
       root: process.cwd(),
