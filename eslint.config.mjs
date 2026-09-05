@@ -78,6 +78,9 @@ const config = [
       'unicorn/no-computed-property-existence-check': 'off',
       'unicorn/no-non-function-verb-prefix': 'off',
       'unicorn/prefer-https': 'off',
+      // Iterator helpers (`Iterator#toArray()`) are ES2025; the build targets
+      // ES2022, so spreading an iterator is still the portable form.
+      'unicorn/prefer-iterator-to-array': 'off',
     },
   },
   prettier,

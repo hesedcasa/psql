@@ -190,15 +190,13 @@ describe('query-validator', () => {
     })
 
     it('requires confirmation for a destructive statement inside a CTE', () => {
-      expect(
-        requiresConfirmation('WITH d AS ( DELETE FROM users RETURNING * ) SELECT 1', destructive).required,
-      ).to.be.true
+      expect(requiresConfirmation('WITH d AS ( DELETE FROM users RETURNING * ) SELECT 1', destructive).required).to.be
+        .true
     })
 
     it('requires confirmation for a destructive statement inside a CTE with no inner spaces', () => {
-      expect(
-        requiresConfirmation('WITH d AS (DELETE FROM users RETURNING *) SELECT 1', destructive).required,
-      ).to.be.true
+      expect(requiresConfirmation('WITH d AS (DELETE FROM users RETURNING *) SELECT 1', destructive).required).to.be
+        .true
     })
 
     it('requires confirmation for a DO block, whose body cannot be inspected', () => {
@@ -215,8 +213,7 @@ describe('query-validator', () => {
 
     it('does not fire on INSERT ... ON CONFLICT DO UPDATE, which is not a configured operation', () => {
       expect(
-        requiresConfirmation('INSERT INTO t (a) VALUES (1) ON CONFLICT (a) DO UPDATE SET a = 2', destructive)
-          .required,
+        requiresConfirmation('INSERT INTO t (a) VALUES (1) ON CONFLICT (a) DO UPDATE SET a = 2', destructive).required,
       ).to.be.false
     })
 

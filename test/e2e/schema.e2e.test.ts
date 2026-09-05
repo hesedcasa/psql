@@ -79,7 +79,6 @@ describe('e2e: schema inspection', () => {
     const payload = await runCliJson<{data: {indexes: Index[]}}>(['psql', 'indexes', 'users'], configDir)
 
     const byName = new Map(payload.data.indexes.map((i) => [i.indexname, i]))
-    // eslint-disable-next-line unicorn/prefer-iterator-to-array
     expect([...byName.keys()]).to.have.members(['users_pkey', 'uniq_users_email', 'idx_users_status'])
     expect(byName.get('uniq_users_email')?.indexdef).to.include('CREATE UNIQUE INDEX')
     expect(byName.get('idx_users_status')?.indexdef).to.include('CREATE INDEX')
