@@ -203,6 +203,37 @@ describe('query-validator', () => {
       expect(requiresConfirmation('DO $$ BEGIN DELETE FROM users; END $$', destructive).required).to.be.true
     })
 
+    it('requires confirmation for a MERGE whose matched action is destructive', () => {
+      expect(
+        requiresConfirmation(
+          'MERGE INTO users u USING s ON s.id = u.id WHEN MATCHED THEN UPDATE SET a = 1',
+          destructive,
+        ).required,
+      ).to.be.true
+    })
+
+    it('requires confirmation for a MERGE whose matched action is DELETE', () => {
+      expect(
+        requiresConfirmation('MERGE INTO users u USING s ON s.id = u.id WHEN MATCHED THEN DELETE', destructive)
+          .required,
+      ).to.be.true
+    })
+
+    it('requires confirmation for a PREPARE wrapping a destructive statement', () => {
+      expect(requiresConfirmation('PREPARE p AS DELETE FROM users', destructive).required).to.be.true
+    })
+
+    it('does not fire on a MERGE whose matched action is harmless', () => {
+      expect(
+        requiresConfirmation('MERGE INTO t USING s ON s.id = t.id WHEN NOT MATCHED THEN INSERT VALUES (1)', destructive)
+          .required,
+      ).to.be.false
+    })
+
+    it('does not fire on a PREPARE wrapping a harmless statement', () => {
+      expect(requiresConfirmation('PREPARE p AS SELECT * FROM users', destructive).required).to.be.false
+    })
+
     it('does not fire on a harmless EXPLAIN', () => {
       expect(requiresConfirmation('EXPLAIN SELECT * FROM users', destructive).required).to.be.false
     })

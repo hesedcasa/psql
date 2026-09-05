@@ -70,7 +70,8 @@ export class PostgreSQLUtil implements DatabaseUtil {
     try {
       const result = await this.runQuery(
         profileName,
-        `SELECT column_name, data_type, character_maximum_length, is_nullable, column_default FROM information_schema.columns WHERE table_name = '${table}' AND table_schema = 'public' ORDER BY ordinal_position`,
+        "SELECT column_name, data_type, character_maximum_length, is_nullable, column_default FROM information_schema.columns WHERE table_name = $1 AND table_schema = 'public' ORDER BY ordinal_position",
+        [table],
       )
 
       return {
@@ -248,7 +249,8 @@ export class PostgreSQLUtil implements DatabaseUtil {
     try {
       const result = await this.runQuery(
         profileName,
-        `SELECT indexname, indexdef FROM pg_indexes WHERE tablename = '${table}' AND schemaname = 'public'`,
+        "SELECT indexname, indexdef FROM pg_indexes WHERE tablename = $1 AND schemaname = 'public'",
+        [table],
       )
 
       return {
@@ -403,13 +405,13 @@ export class PostgreSQLUtil implements DatabaseUtil {
 
   // All queries go through here so concurrent load on the same profile is
   // capped at maxConcurrentQueries; excess queries wait for a free slot.
-  private async runQuery(profileName: string, sql: string): Promise<pg.QueryResult<PgRow>> {
+  private async runQuery(profileName: string, sql: string, values?: unknown[]): Promise<pg.QueryResult<PgRow>> {
     const release = await this.acquireQuerySlot(profileName)
     try {
       // A multi-statement query makes the driver return one result per
       // statement rather than a single result. The typings do not model that,
       // hence the widening cast. Report the last, which is what psql shows.
-      const result = (await this.getPool(profileName).query<PgRow>(sql)) as
+      const result = (await this.getPool(profileName).query<PgRow>(sql, values)) as
         Array<pg.QueryResult<PgRow>> | pg.QueryResult<PgRow>
 
       // Non-null: there is always at least one statement, so at least one result.

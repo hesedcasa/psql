@@ -52,10 +52,11 @@ export function checkBlacklist(query: string, blacklistedOperations: string[]): 
 }
 
 // A statement's leading keyword decides how requiresConfirmation reads it:
-// most operations only ever hide behind their own leading word, but EXPLAIN
-// and WITH can carry a destructive statement past that first word, and DO
-// hides its body entirely.
+// most operations only ever hide behind their own leading word, but EXPLAIN,
+// WITH, MERGE and PREPARE can carry a destructive statement past that first
+// word, and DO hides its body entirely.
 const LEADING_KEYWORD = /^\s*([A-Za-z_]\w*)/u
+const UNANCHORED_FALLBACK_KEYWORDS = new Set(['EXPLAIN', 'MERGE', 'PREPARE', 'WITH'])
 
 export function requiresConfirmation(query: string, confirmationOperations: string[]): ConfirmationCheckResult {
   // Every statement is judged on its own leading keyword, so a destructive one
@@ -88,12 +89,15 @@ export function requiresConfirmation(query: string, confirmationOperations: stri
         }
       }
 
-      // EXPLAIN ANALYZE actually executes the statement it explains, and a
-      // data-modifying CTE runs its DELETE/UPDATE as part of a leading WITH.
-      // Both hide the destructive keyword past the statement's own leading
-      // word, so these two shapes alone fall back to an unanchored scan.
+      // EXPLAIN ANALYZE actually executes the statement it explains, a
+      // data-modifying CTE runs its DELETE/UPDATE as part of a leading WITH,
+      // a MERGE's destructive action sits behind WHEN [NOT] MATCHED, and
+      // PREPARE's destructive statement sits behind its AS. Each hides the
+      // destructive keyword past the statement's own leading word, so these
+      // shapes alone fall back to an unanchored scan.
       if (
-        (leadingKeyword === 'EXPLAIN' || leadingKeyword === 'WITH') &&
+        leadingKeyword &&
+        UNANCHORED_FALLBACK_KEYWORDS.has(leadingKeyword) &&
         operationPattern(operation, false).test(statement)
       ) {
         return {

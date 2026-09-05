@@ -68,6 +68,46 @@ describe('postgres-utils: PostgreSQLUtil', () => {
     })
   })
 
+  describe('describeTable', () => {
+    it('parameterizes the table name rather than interpolating it', async () => {
+      mockPool.query.resolves({
+        command: 'SELECT',
+        fields: [{name: 'column_name'}],
+        rowCount: 0,
+        rows: [],
+      })
+
+      const util = new PostgreSQLUtil(mockConfig)
+      await util.describeTable('local', "x'; DROP TABLE users; --")
+
+      expect(mockPool.query.callCount).to.equal(1)
+      const [sql, values] = mockPool.query.firstCall.args
+      expect(sql).to.not.include("x'; DROP TABLE users; --")
+      expect(sql).to.include('$1')
+      expect(values).to.deep.equal(["x'; DROP TABLE users; --"])
+    })
+  })
+
+  describe('showIndexes', () => {
+    it('parameterizes the table name rather than interpolating it', async () => {
+      mockPool.query.resolves({
+        command: 'SELECT',
+        fields: [{name: 'indexname'}],
+        rowCount: 0,
+        rows: [],
+      })
+
+      const util = new PostgreSQLUtil(mockConfig)
+      await util.showIndexes('local', "x'; DROP TABLE users; --")
+
+      expect(mockPool.query.callCount).to.equal(1)
+      const [sql, values] = mockPool.query.firstCall.args
+      expect(sql).to.not.include("x'; DROP TABLE users; --")
+      expect(sql).to.include('$1')
+      expect(values).to.deep.equal(["x'; DROP TABLE users; --"])
+    })
+  })
+
   describe('executeQuery', () => {
     it('blocks blacklisted operations', async () => {
       const util = new PostgreSQLUtil(mockConfig)
