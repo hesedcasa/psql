@@ -8,10 +8,10 @@
   },
   "bugs": "https://github.com/hesedcasa/psql/issues",
   "dependencies": {
-    "@hesed/plugin-lib": "^0.10.0",
+    "@hesed/plugin-lib": "^0.13.0",
     "@inquirer/prompts": "^8.3.0",
-    "@oclif/core": "^4",
-    "@toon-format/toon": "^2.1.0",
+    "@oclif/core": "^5",
+    "@toon-format/toon": "^4.0.0",
     "fs-extra": "^11.3.3",
     "pg": "^8.19.0",
     "yaml": "^2.8.1"
