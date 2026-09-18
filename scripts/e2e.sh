@@ -95,9 +95,22 @@ export PATH="$PWD/node_modules/.bin:$PATH"
 
 # A throwaway sdkck home keeps the plugin install, its config and its caches
 # out of the developer's real sdkck setup; the test side finds it via
-# E2E_SDKCK_HOME.
+# E2E_SDKCK_HOME. The dirs are exported for the whole setup, so every sdkck
+# call below — and any accidental one — shares them.
 SDKCK_HOME="$(mktemp -d)"
 export E2E_SDKCK_HOME="$SDKCK_HOME"
+export SDKCK_CACHE_DIR="$SDKCK_HOME/cache"
+export SDKCK_CONFIG_DIR="$SDKCK_HOME/config"
+export SDKCK_DATA_DIR="$SDKCK_HOME/data"
+
+# sdkck pre-registers @hesed/psql as a just-in-time plugin whose first use
+# silently installs the published release — enough to satisfy this leg
+# without exercising this build. `plugins inspect` is a host command, so the
+# probe cannot trigger that install; it must fail here.
+if sdkck plugins inspect @hesed/psql --json >/dev/null 2>&1; then
+  echo "error: @hesed/psql is already installed in the throwaway sdkck home" >&2
+  exit 1
+fi
 
 echo "==> Packing the current build and installing it as an sdkck plugin"
 # npm pack runs `prepack`, regenerating oclif.manifest.json and the README —
@@ -111,10 +124,18 @@ TGZ="$(npm pack --pack-destination "$SDKCK_HOME" | tail -n 1)"
 # first-use auto-installer from pulling the published @hesed/psql release over
 # the build under test. The tarball must be passed as a `file:` URL: sdkck
 # resolves any bare path containing a slash as a GitHub org/repo.
-SDKCK_CACHE_DIR="$SDKCK_HOME/cache" \
-SDKCK_CONFIG_DIR="$SDKCK_HOME/config" \
-SDKCK_DATA_DIR="$SDKCK_HOME/data" \
-  sdkck plugins install "file:$SDKCK_HOME/$TGZ"
+sdkck plugins install "file:$SDKCK_HOME/$TGZ"
+
+# Prove dispatch resolves to the tarball this run packed, not a published
+# release the jit installer could have fetched: the install record sdkck
+# writes under the data dir must carry our file: URL. The record is read
+# from disk rather than via `sdkck plugins inspect`, which has been observed
+# to die on an unsettled top-level await right after loading a freshly
+# installed plugin.
+grep -Fq "\"file:$SDKCK_HOME/$TGZ\"" "$SDKCK_DATA_DIR/package.json" || {
+  echo "error: sdkck did not register the packed tarball as @hesed/psql" >&2
+  exit 1
+}
 
 echo "==> Running end-to-end tests via sdkck"
 E2E_HOST_CLI=sdkck run_mocha

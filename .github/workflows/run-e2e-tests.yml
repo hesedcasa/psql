@@ -58,14 +58,29 @@ jobs:
           npm install --no-save sdkck
           home="$(mktemp -d)"
           echo "E2E_SDKCK_HOME=$home" >> "$GITHUB_ENV"
+          export SDKCK_CACHE_DIR="$home/cache" SDKCK_CONFIG_DIR="$home/config" SDKCK_DATA_DIR="$home/data"
+          # sdkck pre-registers @hesed/psql as a just-in-time plugin whose
+          # first use silently installs the published release — enough to
+          # satisfy this leg without exercising this build. `plugins inspect`
+          # is a host command, so the probe cannot trigger that install; it
+          # must fail here.
+          if ./node_modules/.bin/sdkck plugins inspect @hesed/psql --json >/dev/null 2>&1; then
+            echo "error: @hesed/psql is already installed in the throwaway sdkck home" >&2
+            exit 1
+          fi
           # A `file:` URL is required: sdkck resolves any bare path containing
           # a slash as a GitHub org/repo. Packing into the throwaway home
           # keeps the tarball out of the workspace.
           tgz="$(npm pack --pack-destination "$home" | tail -n 1)"
-          SDKCK_CACHE_DIR="$home/cache" \
-          SDKCK_CONFIG_DIR="$home/config" \
-          SDKCK_DATA_DIR="$home/data" \
-            ./node_modules/.bin/sdkck plugins install "file:$home/$tgz"
+          ./node_modules/.bin/sdkck plugins install "file:$home/$tgz"
+          # Prove dispatch resolves to the tarball this run packed, not a
+          # published release the jit installer could have fetched: the
+          # install record sdkck writes under the data dir must carry our
+          # file: URL. The record is read from disk rather than via
+          # `sdkck plugins inspect`, which has been observed to die on an
+          # unsettled top-level await right after loading a freshly
+          # installed plugin.
+          grep -Fq "\"file:$home/$tgz\"" "$SDKCK_DATA_DIR/package.json"
 
       - name: Run end-to-end tests via sdkck
         run: npm run e2e:mocha
