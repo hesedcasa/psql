@@ -184,32 +184,18 @@ const imported = await esmock('../../src/psql/postgres-utils.js', {
 // query mock returns pg result format: {rows, fields, rowCount, command}
 ```
 
-**End-to-end tests** (`test/e2e/*.e2e.test.ts`) — no mocks. `docker/Dockerfile` provisions a
-PostgreSQL 17 server seeded from `docker/initdb/`, and `test/e2e/helpers.ts` runs the built
-`bin/run.js` as a subprocess with `PG_CONFIG_DIR` pointed at a temp config dir holding
-`default`, `alt`, `empty` and `broken` profiles:
+**End-to-end tests** (`test/e2e/*.e2e.test.ts`) — no mocks. `docker/Dockerfile` provisions a PostgreSQL 17 server seeded from `docker/initdb/`, and `test/e2e/helpers.ts` runs the built `bin/run.js` as a subprocess with `PG_CONFIG_DIR` pointed at a temp config dir holding `default`, `alt`, `empty` and `broken` profiles. `npm run test:e2e` then reruns the same suite through the latest sdkck host CLI with the current build packed and installed as its `@hesed/psql` plugin — the host switch (`E2E_HOST_CLI=sdkck` + `E2E_SDKCK_HOME`, set by `scripts/e2e.sh` and the CI workflow) lives in `test/e2e/helpers.ts`; the plugin must be installed before any `sdkck psql` call, or sdkck auto-installs the published release, and the tarball must be a `file:` URL (bare paths read as GitHub org/repo):
 
 ```typescript
 const configDir = await createConfigDir()
 const payload = await runCliJson<{data: {tables: string[]}}>(['psql', 'tables'], configDir)
 ```
 
-`runCli` returns `{code, stdout, stderr}` without throwing (for failure-path assertions),
-`runCliOk` asserts a zero exit, and `runCliJson` appends `--json` and parses stdout. These
-files live in `test/e2e/`, which `npm test` skips via `--ignore` — they need a live
-server. Run them with `npm run test:e2e`; see `scripts/e2e.sh`.
+`runCli` returns `{code, stdout, stderr}` without throwing (for failure-path assertions), `runCliOk` asserts a zero exit, and `runCliJson` appends `--json` and parses stdout. These files live in `test/e2e/`, which `npm test` skips via `--ignore` — they need a live server. Run them with `npm run test:e2e`; see `scripts/e2e.sh`.
 
-Each `npm run test:e2e` gets its own Compose project (`pg-e2e-<pid>`) and lets Docker
-publish PostgreSQL on a free host port, so concurrent runs never share a database or tear
-down each other's container. `PG_E2E_PROJECT` and `PG_E2E_PORT` override both; `e2e:up` /
-`e2e:down` use the defaults (`pg-e2e` on 15432), which is why they pair with `e2e:mocha`.
-Give concurrent runs separate working trees, though — the build writes a single `dist/`.
+Each `npm run test:e2e` gets its own Compose project (`pg-e2e-<pid>`) and lets Docker publish PostgreSQL on a free host port, so concurrent runs never share a database or tear down each other's container. `PG_E2E_PROJECT` and `PG_E2E_PORT` override both; `e2e:up` / `e2e:down` use the defaults (`pg-e2e` on 15432), which is why they pair with `e2e:mocha`. Give concurrent runs separate working trees, though — the build writes a single `dist/`.
 
-The fixtures are fixed in `docker/initdb/01-schema.sql`: `metrics` holds 150 rows so the
-default `LIMIT 100` truncates observably, `wide_orders` holds 2000 so the planner really
-picks an index for the `explain` assertion, and `quirky` carries NULLs, embedded commas and
-a `bytea` column for the formatter tests. Tests that mutate data create their own
-`scratch_<name>_<pid>` table rather than touching the fixtures.
+The fixtures are fixed in `docker/initdb/01-schema.sql`: `metrics` holds 150 rows so the default `LIMIT 100` truncates observably, `wide_orders` holds 2000 so the planner really picks an index for the `explain` assertion, and `quirky` carries NULLs, embedded commas and a `bytea` column for the formatter tests. Tests that mutate data create their own `scratch_<name>_<pid>` table rather than touching the fixtures.
 
 **Auth command tests** — mock `@inquirer/prompts` input function in `beforeEach` to avoid blocking on stdin:
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Runs the end-to-end suite against a disposable PostgreSQL server in Docker.
+# Runs the end-to-end suite against a disposable PostgreSQL server in Docker —
+# twice: once through the built standalone CLI, then again through the latest
+# sdkck host CLI with this build packed and installed as its @hesed/psql plugin.
 #
 #   npm run test:e2e            # up -> build -> test -> down
 #   npm run test:e2e -- --keep  # leave the container running afterwards
@@ -43,6 +45,10 @@ export PG_E2E_PROJECT="${PG_E2E_PROJECT:-pg-e2e-$$}"
 export PG_E2E_PORT="${PG_E2E_PORT:-0}"
 
 cleanup() {
+  if [ -n "${SDKCK_HOME:-}" ]; then
+    rm -rf "$SDKCK_HOME"
+  fi
+
   if [ "$KEEP" -eq 0 ]; then
     echo "==> Stopping PostgreSQL container"
     docker compose -f "$COMPOSE_FILE" down -v --remove-orphans >/dev/null 2>&1 || true
@@ -54,6 +60,13 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
+
+run_mocha() {
+  # Delegates to the `e2e:mocha` script rather than calling mocha directly, so
+  # both entry points share one glob and one timeout.
+  # The +expansion guard keeps `set -u` happy with an empty array on bash 3.2.
+  npm run --silent e2e:mocha -- ${MOCHA_ARGS[@]+"${MOCHA_ARGS[@]}"}
+}
 
 echo "==> Starting PostgreSQL (project $PG_E2E_PROJECT)"
 docker compose -f "$COMPOSE_FILE" up -d --build --wait
@@ -70,5 +83,38 @@ echo "==> Building the CLI"
 npm run build
 
 echo "==> Running end-to-end tests"
-# The +expansion guard keeps `set -u` happy with an empty array on bash 3.2.
-npx mocha --forbid-only "test/e2e/**/*.e2e.test.ts" ${MOCHA_ARGS[@]+"${MOCHA_ARGS[@]}"}
+run_mocha
+
+# Second leg: the same suite through the sdkck host CLI, with this build
+# installed as its @hesed/psql plugin.
+echo "==> Downloading the latest sdkck"
+# --no-save resolves "latest" from the registry on every run without touching
+# package.json; the binary comes from node_modules/.bin.
+npm install --silent --no-save sdkck
+export PATH="$PWD/node_modules/.bin:$PATH"
+
+# A throwaway sdkck home keeps the plugin install, its config and its caches
+# out of the developer's real sdkck setup; the test side finds it via
+# E2E_SDKCK_HOME.
+SDKCK_HOME="$(mktemp -d)"
+export E2E_SDKCK_HOME="$SDKCK_HOME"
+
+echo "==> Packing the current build and installing it as an sdkck plugin"
+# npm pack runs `prepack`, regenerating oclif.manifest.json and the README —
+# the same artifacts the publish workflow ships — so the sdkck leg exercises
+# the real install artifact, not just the working tree. Packing straight into
+# the throwaway home keeps the tarball out of the repo root; the EXIT trap
+# removes it with the rest of the home.
+TGZ="$(npm pack --pack-destination "$SDKCK_HOME" | tail -n 1)"
+
+# Installing here — before any `sdkck psql` invocation — stops sdkck's
+# first-use auto-installer from pulling the published @hesed/psql release over
+# the build under test. The tarball must be passed as a `file:` URL: sdkck
+# resolves any bare path containing a slash as a GitHub org/repo.
+SDKCK_CACHE_DIR="$SDKCK_HOME/cache" \
+SDKCK_CONFIG_DIR="$SDKCK_HOME/config" \
+SDKCK_DATA_DIR="$SDKCK_HOME/data" \
+  sdkck plugins install "file:$SDKCK_HOME/$TGZ"
+
+echo "==> Running end-to-end tests via sdkck"
+E2E_HOST_CLI=sdkck run_mocha
