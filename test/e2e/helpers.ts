@@ -72,8 +72,49 @@ export async function removeConfigDir(dir: string): Promise<void> {
 }
 
 /**
- * Runs the built CLI (`bin/run.js`) as a real subprocess against the Docker
- * PostgreSQL server. Non-zero exits are returned rather than thrown so tests
+ * Builds the subprocess invocation for the configured host CLI.
+ *
+ * By default the built standalone CLI (`bin/run.js`) runs with `PG_CONFIG_DIR`
+ * (oclif scopes that env var by bin name). When `E2E_HOST_CLI=sdkck`, the same
+ * arguments go to the `sdkck` binary instead — plugin commands are
+ * topic-prefixed (`sdkck psql tables`), so the argv is host-agnostic — and
+ * oclif's bin-scoped `SDKCK_*` dirs are redirected: config to the same
+ * throwaway `pg-config.json` dir the standalone leg uses, data/cache into the
+ * throwaway sdkck home (`E2E_SDKCK_HOME`) that the script or CI workflow
+ * installed the plugin into.
+ *
+ * @param args Command line arguments, e.g. ['psql', 'tables'].
+ * @param configDir The dir holding pg-config.json, from createConfigDir().
+ * @returns The executable, its argv, and env overrides to layer over process.env.
+ */
+function hostInvocation(
+  args: string[],
+  configDir: string,
+): {argv: string[]; command: string; env: Record<string, string>} {
+  if (process.env.E2E_HOST_CLI === 'sdkck') {
+    const home = process.env.E2E_SDKCK_HOME
+    if (!home) {
+      throw new Error('E2E_HOST_CLI=sdkck requires E2E_SDKCK_HOME — set by scripts/e2e.sh or the CI workflow')
+    }
+
+    return {
+      argv: args,
+      command: 'sdkck',
+      env: {
+        SDKCK_CACHE_DIR: path.join(home, 'cache'),
+        SDKCK_CONFIG_DIR: configDir,
+        SDKCK_DATA_DIR: path.join(home, 'data'),
+      },
+    }
+  }
+
+  return {argv: [CLI, ...args], command: process.execPath, env: {PG_CONFIG_DIR: configDir}}
+}
+
+/**
+ * Runs the host CLI as a real subprocess against the Docker PostgreSQL server.
+ * The host is the built standalone CLI unless `E2E_HOST_CLI=sdkck` (see
+ * hostInvocation()). Non-zero exits are returned rather than thrown so tests
  * can assert on failure paths.
  *
  * Every inherited PG* variable is dropped first. The `pg` driver falls back to
@@ -81,15 +122,17 @@ export async function removeConfigDir(dir: string): Promise<void> {
  * PostgreSQL settings would otherwise leak into the run.
  *
  * @param args Command line arguments, e.g. ['psql', 'tables'].
- * @param configDir Value for PG_CONFIG_DIR, from createConfigDir().
+ * @param configDir Value for PG_CONFIG_DIR / SDKCK_CONFIG_DIR, from
+ *   createConfigDir().
  * @returns The exit code and captured stdout/stderr.
  */
 export async function runCli(args: string[], configDir: string): Promise<CliResult> {
+  const {argv, command, env: hostEnv} = hostInvocation(args, configDir)
   const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('PG')))
-  const env = {...inherited, FORCE_COLOR: '0', NO_COLOR: '1', PG_CONFIG_DIR: configDir}
+  const env = {...inherited, FORCE_COLOR: '0', NO_COLOR: '1', ...hostEnv}
 
   try {
-    const {stderr, stdout} = await execFileAsync(process.execPath, [CLI, ...args], {
+    const {stderr, stdout} = await execFileAsync(command, argv, {
       env,
       maxBuffer: 32 * 1024 * 1024,
     })
