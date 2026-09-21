@@ -3,11 +3,11 @@ name: Run end-to-end tests
 permissions:
   contents: read
 
+# On demand only. The suite stands up a PostgreSQL container and runs two
+# legs against it, so it is triggered manually rather than on every push and
+# pull request.
 on:
-  push:
-    branches:
-      - main
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   run-e2e-tests:
@@ -22,7 +22,7 @@ jobs:
         with:
           fetch-depth: 2
           # Nothing here pushes; don't leave the token in .git/config for the
-          # `npm ci` and build steps, which run pull request code.
+          # `npm ci` and build steps, which run repository code.
           persist-credentials: false
 
       - name: Set up Node.js
