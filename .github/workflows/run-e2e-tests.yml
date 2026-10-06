@@ -58,6 +58,7 @@ jobs:
       # install, config and caches out of the runner's real sdkck setup; the
       # test side finds it via E2E_SDKCK_HOME.
       - name: Install the latest sdkck and the packed plugin
+        id: sdkck
         if: ${{ !cancelled() }}
         timeout-minutes: 5
         run: |
@@ -87,8 +88,10 @@ jobs:
           # installed plugin.
           grep -Fq "\"file:$home/$tgz\"" "$SDKCK_DATA_DIR/package.json"
 
+      # Only after a verified install: otherwise sdkck's first-use installer
+      # would fetch the published release and the leg would test that instead.
       - name: Run end-to-end tests via sdkck
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.sdkck.outcome == 'success' }}
         timeout-minutes: 20
         run: npm run e2e:mocha
         env:

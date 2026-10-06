@@ -51,6 +51,13 @@ export PG_E2E_PORT="${PG_E2E_PORT:-0}"
 SDKCK_E2E_HOME=""
 
 cleanup() {
+  local status=$?
+  # A setup step that aborts under `set -e` after a failed leg would otherwise
+  # replace that leg's status; the first failure is the one to report.
+  if [ "${EXIT_STATUS:-0}" -ne 0 ]; then
+    status=$EXIT_STATUS
+  fi
+
   if [ -n "$SDKCK_E2E_HOME" ]; then
     # `npm pack` can fail after `prepack` has already rewritten README.md, so
     # the restore lives here rather than only after the pack.
@@ -69,6 +76,8 @@ cleanup() {
     echo "    Stop it with:"
     echo "      PG_E2E_PROJECT=$PG_E2E_PROJECT npm run e2e:down"
   fi
+
+  exit "$status"
 }
 trap cleanup EXIT
 
@@ -147,7 +156,9 @@ echo "==> Packing the current build and installing it as an sdkck plugin"
 # than left modified.
 cp README.md "$SDKCK_E2E_HOME/README.md.orig"
 TGZ="$(npm pack --pack-destination "$SDKCK_E2E_HOME" | tail -n 1)"
-cp "$SDKCK_E2E_HOME/README.md.orig" README.md
+# A move, not a copy: once README.md is back, the EXIT trap must have nothing
+# left to restore, or it would overwrite edits made while the sdkck leg runs.
+mv "$SDKCK_E2E_HOME/README.md.orig" README.md
 
 # Installing here — before any `sdkck psql` invocation — stops sdkck's
 # first-use auto-installer from pulling the published @hesed/psql release
