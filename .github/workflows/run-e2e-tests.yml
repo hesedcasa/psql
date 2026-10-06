@@ -15,10 +15,10 @@ jobs:
     # Docker with the Compose plugin is preinstalled on the Ubuntu runners only.
     runs-on: ubuntu-latest
     # Two legs: the standalone CLI, then the same suite via the sdkck host CLI.
-    timeout-minutes: 45
+    timeout-minutes: 50
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 2
           # Nothing here pushes; don't leave the token in .git/config for the
@@ -26,7 +26,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           cache: npm
           node-version-file: '.nvmrc'
@@ -42,7 +42,11 @@ jobs:
       - name: Build the CLI
         run: npm run build
 
+      # Step-level timeouts, not just the job's: a hung standalone run fails
+      # only its own step, so the sdkck leg (which runs unless cancelled) still
+      # gets its turn. The job-level timeout stays as the outer backstop.
       - name: Run end-to-end tests
+        timeout-minutes: 20
         run: npm run e2e:mocha
 
       # Second leg: the same suite through the latest sdkck host CLI with this
@@ -54,16 +58,17 @@ jobs:
       # install, config and caches out of the runner's real sdkck setup; the
       # test side finds it via E2E_SDKCK_HOME.
       - name: Install the latest sdkck and the packed plugin
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
         run: |
           npm install --no-save sdkck
           home="$(mktemp -d)"
           echo "E2E_SDKCK_HOME=$home" >> "$GITHUB_ENV"
           export SDKCK_CACHE_DIR="$home/cache" SDKCK_CONFIG_DIR="$home/config" SDKCK_DATA_DIR="$home/data"
-          # sdkck pre-registers @hesed/psql as a just-in-time plugin whose
-          # first use silently installs the published release — enough to
-          # satisfy this leg without exercising this build. `plugins inspect`
-          # is a host command, so the probe cannot trigger that install; it
-          # must fail here.
+          # A fresh home cannot hold the plugin yet; if it does, the leg would
+          # test whatever is there rather than this build. `plugins inspect` is
+          # a host command, so the probe cannot itself trigger sdkck's
+          # first-use install.
           if ./node_modules/.bin/sdkck plugins inspect @hesed/psql --json >/dev/null 2>&1; then
             echo "error: @hesed/psql is already installed in the throwaway sdkck home" >&2
             exit 1
@@ -74,7 +79,7 @@ jobs:
           tgz="$(npm pack --pack-destination "$home" | tail -n 1)"
           ./node_modules/.bin/sdkck plugins install "file:$home/$tgz"
           # Prove dispatch resolves to the tarball this run packed, not a
-          # published release the jit installer could have fetched: the
+          # published release the auto-installer could have fetched: the
           # install record sdkck writes under the data dir must carry our
           # file: URL. The record is read from disk rather than via
           # `sdkck plugins inspect`, which has been observed to die on an
@@ -83,6 +88,8 @@ jobs:
           grep -Fq "\"file:$home/$tgz\"" "$SDKCK_DATA_DIR/package.json"
 
       - name: Run end-to-end tests via sdkck
+        if: ${{ !cancelled() }}
+        timeout-minutes: 20
         run: npm run e2e:mocha
         env:
           E2E_HOST_CLI: sdkck
